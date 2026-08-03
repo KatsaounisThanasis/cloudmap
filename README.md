@@ -35,7 +35,11 @@ draw.io: contoso-web.drawio
 `--level detail` to see every instance with its real name.)
 
 Open the `.drawio` file in [draw.io](https://app.diagrams.net) / the desktop app
-/ the VS Code extension and edit it like any hand-drawn diagram.
+/ the VS Code extension and edit it like any hand-drawn diagram - or open the
+self-contained `--html` viewer straight from disk (no server, no install) and
+click a resource to focus its blast radius:
+
+![The interactive HTML viewer: the seed at the centre, dependencies fanned out with native Azure icons, each edge carrying its relationship and proof](estate-viewer.png)
 
 ## Why
 
@@ -152,12 +156,13 @@ printed, the mapping is not. **A scrubber is not a proof: read the file before y
 commit it.** `--no-scrub` exists for local debugging and writes credentials to
 disk; keep those files named `*.live.json` so `.gitignore` catches them.
 
-### Live Azure (opt-in, guarded)
+### Live Azure (opt-in)
 
 ```
 cloudmap trace my-app --live --allow-live
 
-  --single-sub          query only the active subscription (default: all non-prod subs)
+  --single-sub          query only the active subscription (default: every enabled
+                        subscription in the tenant)
   --enrich MODE         which web apps to deep-enrich for the dependencies that only
                         exist in app config. auto (default) = the seed alone when the
                         seed is a web app, every app in scope when it is not;
@@ -178,11 +183,14 @@ Anything left un-enriched is reported as a **blind spot** on the map and repeate
 every `ask` answer drawn from it, so an empty result never passes for "nothing depends
 on this".
 
-Live mode is guarded: production is hard-blocked by subscription-name hint, and
-you must confirm the exact active subscription up front -
+Live mode is opt-in, not sandboxed: `--allow-live` is the deliberate switch, and
+cloudmap reads whatever subscription `az` is pointed at. The read is read-only, but
+it is a read of live infrastructure, so point it on purpose. As an optional guard
+against a stale `az` context silently redirecting a scan, pin the subscription you
+mean - if set, cloudmap refuses to run against any other active subscription:
 
 ```
-export CLOUDMAP_ALLOW_SUBSCRIPTION=<active-subscription-id>
+export CLOUDMAP_ALLOW_SUBSCRIPTION=<subscription-id>   # optional
 ```
 
 If a live read fails (e.g. missing RBAC), cloudmap **reports the gap** instead of
@@ -193,7 +201,7 @@ picture is incomplete. Fixtures are always the default.
 ## Install
 
 ```
-git clone <repo> && cd cloudmap
+git clone https://github.com/KatsaounisThanasis/cloudmap && cd cloudmap
 pip install -e .          # or just: python -m cloudmap trace ...
 ```
 

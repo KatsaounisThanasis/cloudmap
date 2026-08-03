@@ -27,7 +27,8 @@ def main(argv=None):
     src.add_argument("--live", action="store_true", help="query live Azure (guarded, opt-in)")
     t.add_argument("--allow-live", action="store_true", help="required together with --live")
     t.add_argument("--single-sub", action="store_true",
-                   help="live: query only the active subscription (default: all non-prod subs)")
+                   help="live: query only the active subscription "
+                        "(default: every enabled subscription in the tenant)")
     t.add_argument("--resolve-secrets", action="store_true",
                    help="live: read KV secret values in-memory to see through KV-backed "
                         "connection strings (never printed or written)")
@@ -56,7 +57,8 @@ def main(argv=None):
     c.add_argument("-o", "--out", required=True, help="where to write the export")
     c.add_argument("--allow-live", action="store_true", help="required: this reads live Azure")
     c.add_argument("--single-sub", action="store_true",
-                   help="capture only the active subscription (default: all non-prod subs)")
+                   help="capture only the active subscription "
+                        "(default: every enabled subscription in the tenant)")
     c.add_argument("--enrich", choices=["all", "none"], default="all",
                    help="all (default) also captures web app config, which is where the "
                         "interesting dependencies live; none captures ARM topology only")
