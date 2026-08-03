@@ -39,6 +39,7 @@ FRIENDLY = {
     "microsoft.network/applicationgateways": "App Gateway",
     "microsoft.apimanagement/service": "API Management",
     "microsoft.managedidentity/userassignedidentities": "Managed Identity",
+    "microsoft.machinelearningservices/workspaces": "ML Workspace",
 }
 
 

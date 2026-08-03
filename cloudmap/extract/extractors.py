@@ -315,6 +315,20 @@ def extract_edges(nodes):
             add(n.id, r.by_resource_id(p["WorkspaceResourceId"]), "uses-workspace",
                 "properties.WorkspaceResourceId")
 
+        # ML workspace / AI Hub: its backing platform is a set of ARM ids in
+        # properties (the store, vault, telemetry and image registry it is built on).
+        if t == "microsoft.machinelearningservices/workspaces":
+            for key, kind in (("storageAccount", "connects-to"),
+                              ("keyVault", "reads-secret"),
+                              ("applicationInsights", "sends-telemetry"),
+                              ("containerRegistry", "pulls-image")):
+                ref = p.get(key)
+                if isinstance(ref, str) and ref.startswith("/subscriptions/"):
+                    add(n.id, r.by_resource_id(ref), kind, f"properties.{key}")
+            for assoc in p.get("associatedWorkspaces") or []:
+                add(n.id, r.by_resource_id(assoc), "associated-with",
+                    "properties.associatedWorkspaces[]")
+
         for c in p.get("privateLinkServiceConnections") or []:
             cp = c.get("properties", c) or {}
             if cp.get("privateLinkServiceId"):

@@ -38,6 +38,7 @@ RELEVANT_TYPES = [
     "microsoft.search/searchservices", "microsoft.cognitiveservices/accounts",
     "microsoft.containerregistry/registries", "microsoft.containerservice/managedclusters",
     "microsoft.app/containerapps", "microsoft.app/managedenvironments",
+    "microsoft.machinelearningservices/workspaces",
     "microsoft.operationalinsights/workspaces", "microsoft.insights/components",
     "microsoft.network/virtualnetworks", "microsoft.network/privateendpoints",
     "microsoft.network/applicationgateways", "microsoft.apimanagement/service",

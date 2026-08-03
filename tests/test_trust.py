@@ -234,3 +234,35 @@ def test_ai_platform_builtin_roles_are_named():
         ("7ca78c08-252a-4471-8644-bb5ff32d4ba0", "Search Service Contributor"),
     ]:
         assert ROLE_NAMES.get(guid) == name
+
+
+def test_ml_workspace_maps_its_backing_platform():
+    # An ML workspace / AI Hub is built on a store, a vault, telemetry and an
+    # image registry - ARM ids in its properties. Before this, the type was not
+    # even scanned, so a workspace could not be traced at all.
+    from cloudmap.graph import build_graph
+
+    S = "/subscriptions/s/resourceGroups/rg/providers"
+    ws = {"id": f"{S}/Microsoft.MachineLearningServices/workspaces/ws", "name": "ws",
+          "type": "microsoft.machinelearningservices/workspaces",
+          "properties": {
+              "storageAccount": f"{S}/Microsoft.Storage/storageAccounts/st",
+              "keyVault": f"{S}/Microsoft.KeyVault/vaults/kv",
+              "applicationInsights": f"{S}/Microsoft.Insights/components/ai",
+              "containerRegistry": f"{S}/Microsoft.ContainerRegistry/registries/acr"}}
+    backing = [
+        {"id": f"{S}/Microsoft.Storage/storageAccounts/st", "name": "st",
+         "type": "microsoft.storage/storageaccounts"},
+        {"id": f"{S}/Microsoft.KeyVault/vaults/kv", "name": "kv",
+         "type": "microsoft.keyvault/vaults"},
+        {"id": f"{S}/Microsoft.Insights/components/ai", "name": "ai",
+         "type": "microsoft.insights/components"},
+        {"id": f"{S}/Microsoft.ContainerRegistry/registries/acr", "name": "acr",
+         "type": "microsoft.containerregistry/registries"},
+    ]
+    edges = build_graph([ws, *backing]).edges
+    kinds = {edg.target.rsplit("/", 1)[-1]: edg.kind for edg in edges if edg.source == ws["id"]}
+
+    assert kinds == {"st": "connects-to", "kv": "reads-secret",
+                     "ai": "sends-telemetry", "acr": "pulls-image"}
+    assert all(e.evidence for e in edges)
