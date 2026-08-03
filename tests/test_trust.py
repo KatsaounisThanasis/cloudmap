@@ -220,3 +220,17 @@ def test_an_unknown_guid_still_falls_through_to_custom_role():
     kinds = [e.kind for e in edges if e.source == "/app" and e.target == "/kv"]
 
     assert kinds == ["role: custom role"]
+
+
+def test_ai_platform_builtin_roles_are_named():
+    # These were the bulk of the "custom role" edges on an AI platform's OpenAI
+    # and Search resources; they are public built-in GUIDs, so name them.
+    from cloudmap.extract.extractors import ROLE_NAMES
+
+    for guid, name in [
+        ("a97b65f3-24c7-4388-baec-2e87135dc908", "Cognitive Services User"),
+        ("5e0bd9bd-7b93-4f28-af87-19fc36ad61bd", "Cognitive Services OpenAI User"),
+        ("a001fd3d-188f-4b5d-821b-7da978bf7442", "Cognitive Services OpenAI Contributor"),
+        ("7ca78c08-252a-4471-8644-bb5ff32d4ba0", "Search Service Contributor"),
+    ]:
+        assert ROLE_NAMES.get(guid) == name

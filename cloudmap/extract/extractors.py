@@ -26,17 +26,41 @@ ROLE_NAMES = {
     "8e3af657-a8ff-443c-a75c-2fe8c4bcb635": "Owner",
     "b24988ac-6180-42a0-ab88-20f7382dd24c": "Contributor",
     "acdd72a7-3385-48ef-bd42-f606fba81ae7": "Reader",
+    "c12c1c16-33a1-487b-954d-41c89c60f349": "Reader and Data Access",
+    "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9": "User Access Administrator",
+    "f58310d9-a9f6-439a-9e8d-f62e7b41a168": "Role Based Access Control Administrator",
+    # web / compute
+    "de139f84-1756-47ae-9be6-808fbbe84772": "Website Contributor",
     # Key Vault
     "4633458b-17de-408a-b874-0445c86b69e6": "Key Vault Secrets User",
     "b86a8fe4-44ce-4948-aee5-eccb2c155cd7": "Key Vault Secrets Officer",
     "21090545-7ca7-4776-b22c-e363652d74d2": "Key Vault Reader",
     "db79e9a7-68ee-4b58-9aeb-b90e7c24fcba": "Key Vault Certificate User",
+    "12338af0-0e69-4776-bea7-57ae8d297424": "Key Vault Crypto User",
+    "00482a5a-887f-4fb3-b363-3b7fe8e74483": "Key Vault Administrator",
     # storage
     "ba92f5b4-2d11-453d-a403-e96b0029c9fe": "Storage Blob Data Contributor",
     "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1": "Storage Blob Data Reader",
+    "b7e6dc6d-f1e8-4753-8033-0f276bb0955b": "Storage Blob Data Owner",
+    "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3": "Storage Table Data Contributor",
+    "69566ab7-960f-475b-8e7c-b3118f30c6bd": "Storage File Data Privileged Contributor",
+    "17d1049b-9a84-46fb-8f53-869881c3d3ab": "Storage Account Contributor",
     # container registry
     "7f951dda-4ed3-4680-a7ca-43fe172d538d": "AcrPull",
     "8311e382-0749-4cb8-b61a-304f252e45ec": "AcrPush",
+    # AI / Cognitive Services / Foundry (central to an AI platform - these were
+    # the bulk of the "custom role" edges on OpenAI and Search resources)
+    "a97b65f3-24c7-4388-baec-2e87135dc908": "Cognitive Services User",
+    "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd": "Cognitive Services OpenAI User",
+    "a001fd3d-188f-4b5d-821b-7da978bf7442": "Cognitive Services OpenAI Contributor",
+    "b78c5d69-af96-48a3-bf8d-a8b4d589de94": "Azure AI Administrator",
+    "64702f94-c441-49e6-a78b-ef80e0188fee": "Azure AI Developer",
+    "3afb7f49-54cb-416e-8c09-6dc049efa503": "Azure AI Inference Deployment Operator",
+    "53ca6127-db72-4b80-b1b0-d745d6d5456d": "Foundry User",
+    # Cognitive Search
+    "1407120a-92aa-4202-b7e9-c0e197c71c8f": "Search Index Data Reader",
+    "8ebe5a00-799e-43f5-93ac-243d3dce84a7": "Search Index Data Contributor",
+    "7ca78c08-252a-4471-8644-bb5ff32d4ba0": "Search Service Contributor",
     # AKS (all built-in - the reason an observer showed up as "custom role")
     "0ab0b1a8-8aac-4efd-b8c2-3ee1fb270be8": "Azure Kubernetes Service Cluster Admin Role",
     "4abbcc35-e782-43d8-92c5-2d3f1bd2253f": "Azure Kubernetes Service Cluster User Role",
