@@ -277,13 +277,28 @@ class Resolver:
         return self.by_host.get((host or "").lower())
 
 
-# Foundational network fabric: depended-upon, never depending. Excluded as a
-# SOURCE of generic reference edges so a shared VNet does not become a hub.
-_FABRIC_TYPES = {
+# Types excluded as a SOURCE of generic reference edges. Two rationales, same
+# effect - keep them off the map as edge origins:
+#   - fabric: foundational network resources are depended-UPON, never depending;
+#     emitting edges from them turns a shared VNet into a hub (its subnets list
+#     everything plugged in). Dependents still point AT them (vnet-integration).
+#   - observers: monitoring/alerting/dashboards exist to POINT AT resources and
+#     watch or display them. They are not dependencies - if you change the target
+#     the observer does not break, it just observes - so they are noise on a
+#     blast-radius map (the same reason a read-only RBAC role is not a dependent).
+_GENERIC_SOURCE_SKIP = {
+    # fabric
     "microsoft.network/virtualnetworks",
     "microsoft.network/networksecuritygroups",
     "microsoft.network/routetables",
     "microsoft.network/privatednszones",
+    # observers
+    "microsoft.alertsmanagement/prometheusrulegroups",
+    "microsoft.alertsmanagement/smartdetectoralertrules",
+    "microsoft.insights/metricalerts",
+    "microsoft.insights/scheduledqueryrules",
+    "microsoft.insights/activitylogalerts",
+    "microsoft.portal/dashboards",
 }
 
 
@@ -403,13 +418,10 @@ def extract_edges(nodes):
     for n in nodes.values():
         if n.type == "microsoft.authorization/roleassignments":
             continue                      # plumbing we derive edges FROM, not a map node
-        # Foundational network fabric lists what is plugged INTO it (subnets and
-        # their private endpoints, NICs, ip configs). Those are back-references:
-        # resources depend on the fabric, not the fabric on them. A generic edge
-        # FROM the fabric would make a shared VNet a hub that drags in every
-        # unrelated resource on it. Skip fabric as a SOURCE - the dependents still
-        # point AT it from their own side (vnet-integration, in-subnet).
-        if n.type in _FABRIC_TYPES:
+        # Fabric (a VNet listing everything plugged in) and observers (a rule
+        # group or dashboard watching a resource) are not dependencies - skip them
+        # as generic-edge sources so they do not clutter or hub the map.
+        if n.type in _GENERIC_SOURCE_SKIP:
             continue
         for arm_id, path in _iter_arm_ids(n.raw.get("properties") or {}, "properties"):
             tgt = r.by_resource_id(arm_id)

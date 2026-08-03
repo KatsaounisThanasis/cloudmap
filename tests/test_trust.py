@@ -300,3 +300,20 @@ def test_generic_pass_does_not_shadow_a_semantic_edge():
              if e.source == web["id"] and e.target == plan["id"]]
 
     assert kinds == ["hosted-on"]                   # not "hosted-on; references"
+
+
+def test_monitoring_observers_are_not_generic_dependencies():
+    # A Prometheus rule group / dashboard points at what it watches; that is an
+    # observer, not a dependency, and must not appear as a generic edge on a
+    # blast-radius map (same principle as a read-only RBAC role).
+    from cloudmap.graph import build_graph
+
+    S = "/subscriptions/s/resourceGroups/rg/providers"
+    aks = {"id": f"{S}/Microsoft.ContainerService/managedClusters/c", "name": "c",
+           "type": "microsoft.containerservice/managedclusters"}
+    rule = {"id": f"{S}/Microsoft.AlertsManagement/prometheusRuleGroups/r", "name": "r",
+            "type": "microsoft.alertsmanagement/prometheusrulegroups",
+            "properties": {"scopes": [f"{S}/Microsoft.ContainerService/managedClusters/c"]}}
+    edges = build_graph([aks, rule]).edges
+
+    assert not any(e.source == rule["id"] for e in edges)   # observer contributes no edge
