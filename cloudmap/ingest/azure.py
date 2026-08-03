@@ -26,25 +26,6 @@ import sys
 # and CLOUDMAP_ALLOW_SUBSCRIPTION (below) is an optional extra pin.
 DENY_TENANTS = set()
 
-# Types worth scanning for dependency resolution (keeps tenant-wide payload sane).
-RELEVANT_TYPES = [
-    "microsoft.web/sites", "microsoft.web/serverfarms",
-    "microsoft.keyvault/vaults", "microsoft.storage/storageaccounts",
-    "microsoft.sql/servers",
-    "microsoft.dbforpostgresql/flexibleservers", "microsoft.dbforpostgresql/servers",
-    "microsoft.dbformysql/flexibleservers", "microsoft.dbformysql/servers",
-    "microsoft.documentdb/databaseaccounts", "microsoft.cache/redis",
-    "microsoft.servicebus/namespaces", "microsoft.eventhub/namespaces",
-    "microsoft.search/searchservices", "microsoft.cognitiveservices/accounts",
-    "microsoft.containerregistry/registries", "microsoft.containerservice/managedclusters",
-    "microsoft.app/containerapps", "microsoft.app/managedenvironments",
-    "microsoft.machinelearningservices/workspaces",
-    "microsoft.operationalinsights/workspaces", "microsoft.insights/components",
-    "microsoft.network/virtualnetworks", "microsoft.network/privateendpoints",
-    "microsoft.network/applicationgateways", "microsoft.apimanagement/service",
-    "microsoft.managedidentity/userassignedidentities",
-]
-
 _KV_REF = re.compile(r"@microsoft\.keyvault\(([^)]*)\)", re.I)
 
 
@@ -87,7 +68,11 @@ def _target_subscriptions(active_id, tenant_wide):
 
 _PAGE_CAP = 40
 
-RESOURCES_KQL = ("resources | where type in~ ('" + "','".join(RELEVANT_TYPES) + "') "
+# Scan EVERY resource type, not an allowlist: any type can be a seed, and any
+# type can be the target of an ARM-id reference the generic pass resolves. That
+# is what makes "map anything" true. Types nothing references stay disconnected
+# islands - they cost a little payload but never appear in a seed's blast radius.
+RESOURCES_KQL = ("resources "
                  "| project id,name,type,resourceGroup,subscriptionId,location,kind,identity,properties,tags")
 # Role assignments live in a separate table; pulling them tenant-wide lets us
 # answer "what has access to this resource" (reverse / incident-response view).

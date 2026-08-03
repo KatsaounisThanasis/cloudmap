@@ -389,6 +389,7 @@ def extract_edges(nodes):
     # deterministically, with the property path as proof. A semantic rule that
     # already named a pair wins (kept as-is); the generic edge only fills gaps.
     known = {(e.source, e.target) for e in edges}
+    generic = set()
     for n in nodes.values():
         if n.type == "microsoft.authorization/roleassignments":
             continue                      # plumbing we derive edges FROM, not a map node
@@ -397,8 +398,13 @@ def extract_edges(nodes):
             if (not tgt or tgt == n.id or (n.id, tgt) in known
                     or nodes[tgt].type == "microsoft.authorization/roleassignments"):
                 continue
+            # two resources that name each other (a NIC and its VNet) would give a
+            # back-and-forth pair; keep the first direction seen, drop the mirror.
+            if (tgt, n.id) in generic:
+                continue
             add(n.id, tgt, "references", path)
             known.add((n.id, tgt))
+            generic.add((n.id, tgt))
 
     return _dedupe(edges)
 

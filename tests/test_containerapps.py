@@ -134,11 +134,16 @@ def test_the_types_have_readable_names_in_the_high_level_view():
     assert friendly_type("microsoft.app/managedenvironments") == "Container Apps Environment"
 
 
-def test_container_app_types_are_scanned_live():
-    from cloudmap.ingest.azure import RELEVANT_TYPES
+def test_live_scan_is_not_type_filtered():
+    # "Map anything" means the live scan carries no type allowlist - every type
+    # (Container Apps included) is scanned, so any resource can be a seed or the
+    # target of a reference.
+    from cloudmap.ingest.azure import RESOURCES_KQL
 
-    assert "microsoft.app/containerapps" in RELEVANT_TYPES
-    assert "microsoft.app/managedenvironments" in RELEVANT_TYPES
+    assert "where type" not in RESOURCES_KQL
+    assert RESOURCES_KQL.strip().startswith("resources | project") \
+        or RESOURCES_KQL.strip().startswith("resources |project") \
+        or "resources " in RESOURCES_KQL
 
 
 def test_extract_edges_is_unchanged_for_estates_without_container_apps():
