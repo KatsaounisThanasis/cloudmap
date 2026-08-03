@@ -1,8 +1,16 @@
-"""LLM-assisted extraction: a LOCAL model proposes dependency edges from a
-resource's JSON; the deterministic Resolver then VERIFIES each proposal against
-the scanned resources. The model generalizes to any resource type without a
-hand-written extractor; the verifier keeps hallucinated edges out of the trusted
-graph (unverifiable targets become explicit `external` nodes).
+"""LLM-assisted extraction: a LOCAL model reads ONE resource's JSON and proposes
+which other resources it depends on; the deterministic Resolver then VERIFIES each
+proposal against the scanned set. This is the discovery half of "map anything" -
+it catches dependencies expressed as free text (a hostname or name in a setting)
+that no hand-written rule and no ARM-id pass would find.
+
+Trust is preserved by two rails, not by trusting the model:
+1. The model is an EXTRACTOR, told to output only targets that appear verbatim in
+   the JSON - not to invent.
+2. Only proposals whose target RESOLVES to a real scanned resource survive. An
+   unverifiable proposal is dropped, never shown - a model guess we cannot confirm
+   is exactly what must not reach the map. Verified edges are still marked
+   origin="model" (drawn dashed), because the model supplied the relationship.
 
 Local by design (ollama) - the resource JSON never leaves the machine.
 """
@@ -11,21 +19,27 @@ import json
 import re
 
 from ..local_model import DEFAULT_MODEL, OLLAMA_URL, generate_json  # noqa: F401  (re-exported)
-from ..model import Edge, Node
+from ..model import Edge
 
 # A plausible dependency target is a hostname / resource name / ARM id - never a
 # secret or connection string. Reject anything that smells like one.
 _SAFE_TARGET = re.compile(r"^[A-Za-z0-9._/\-]{1,160}$")
 _SECRETISH = re.compile(r"(password|secret|accountkey|sharedaccesskey|=|;| )", re.I)
 
-_PROMPT = """You are an Azure architecture analyzer. Given ONE Azure resource as JSON,
-list the OTHER Azure resources it depends on.
-Output ONLY JSON: {{"edges":[{{"target":"<resource name or hostname>","relationship":"<kind>"}}]}}
-- relationship: short label e.g. hosted-on, reads-secret, connects-to, vnet-integration,
-  sends-telemetry, pulls-image, uses-workspace, routes-to
-- derive targets from properties, siteConfig.appSettings, connection strings, ids, hostnames
-- NEVER output secret values, passwords or keys - only resource names or hostnames
+_PROMPT = """You analyse ONE Azure resource to find the OTHER Azure resources it depends on.
+Work ONLY from the JSON below. Every target you output MUST appear verbatim in the JSON
+(a hostname, a resource name, or an ARM resource id inside a setting, connection string,
+endpoint or property). Do NOT invent, guess or infer a resource that is not written there.
 
+Output ONLY JSON of this shape:
+{{"edges":[{{"target":"<hostname | name | ARM id from the JSON>","relationship":"<short kind>"}}]}}
+- relationship: one of hosted-on, reads-secret, connects-to, sends-telemetry, pulls-image,
+  routes-to, uses-workspace, vnet-integration, or a short lowercase verb phrase.
+- Prefer the most specific hostname or name. Never output a secret, password, key or a
+  connection-string value - only the resource it points at.
+- If nothing is referenced, output {{"edges":[]}}.
+
+Resource type: {rtype}
 Resource JSON:
 {resource}
 """
@@ -34,7 +48,8 @@ Resource JSON:
 def propose_edges(resource_raw, model=None, timeout=600):
     """Ask the local model for candidate edges. Returns [(target, relationship)].
     Empty list on any failure (ollama down, bad JSON, timeout)."""
-    prompt = _PROMPT.format(resource=json.dumps(resource_raw, indent=2))
+    prompt = _PROMPT.format(rtype=resource_raw.get("type", "unknown"),
+                            resource=json.dumps(resource_raw, indent=2))
     parsed = generate_json(prompt, model=model, timeout=timeout)
 
     out = []
@@ -57,22 +72,18 @@ def _resolve(hint, resolver):
 
 
 def llm_edges_for_seed(seed_node, resolver, model=None):
-    """Propose edges for the seed via the local model, then verify each. Returns
-    (external_nodes, edges). Verified targets become normal edges; unverifiable
-    ones become explicit external nodes (flagged as model-proposed)."""
-    ext, edges, seen = {}, [], set()
+    """Propose edges for the seed via the local model, keep only the ones whose
+    target resolves to a real scanned resource. Returns (external_nodes, edges) -
+    external_nodes is always empty (an unverifiable model proposal is dropped, not
+    shown); the tuple shape is kept for the caller. Verified edges are origin
+    "model" so renderers draw them dashed and the ask layer treats them as guesses."""
+    edges, seen = [], set()
     for tgt, rel in propose_edges(seed_node.raw, model=model):
         nid = _resolve(tgt, resolver)
-        if nid and nid != seed_node.id:
-            edges.append(Edge(seed_node.id, nid, rel, origin="model",
-                              evidence="proposed by local model (target verified in scope)"))
-        elif not nid:
-            key = f"external://{tgt.lower()}"
-            if key not in seen:
-                seen.add(key)
-                ext[key] = Node(id=key, name=tgt, type="external/llm-proposed",
-                                external=True,
-                                note="proposed by local model; not found in scanned scope")
-            edges.append(Edge(seed_node.id, key, rel, origin="model",
-                              evidence="proposed by local model (target NOT verified)"))
-    return list(ext.values()), edges
+        if not nid or nid == seed_node.id or (seed_node.id, nid) in seen:
+            continue                       # unverifiable or redundant -> drop it
+        seen.add((seed_node.id, nid))
+        edges.append(Edge(seed_node.id, nid, rel, origin="model",
+                          evidence=f"proposed by local model from the resource's own JSON "
+                                   f"(target '{tgt}' verified as a scanned resource)"))
+    return [], edges
