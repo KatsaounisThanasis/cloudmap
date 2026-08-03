@@ -277,6 +277,16 @@ class Resolver:
         return self.by_host.get((host or "").lower())
 
 
+# Foundational network fabric: depended-upon, never depending. Excluded as a
+# SOURCE of generic reference edges so a shared VNet does not become a hub.
+_FABRIC_TYPES = {
+    "microsoft.network/virtualnetworks",
+    "microsoft.network/networksecuritygroups",
+    "microsoft.network/routetables",
+    "microsoft.network/privatednszones",
+}
+
+
 def _iter_arm_ids(obj, path):
     """Yield (arm_id, dotted_path) for every value under `obj` that is itself a
     whole ARM resource id. The path becomes the edge's proof. Substrings inside
@@ -393,6 +403,14 @@ def extract_edges(nodes):
     for n in nodes.values():
         if n.type == "microsoft.authorization/roleassignments":
             continue                      # plumbing we derive edges FROM, not a map node
+        # Foundational network fabric lists what is plugged INTO it (subnets and
+        # their private endpoints, NICs, ip configs). Those are back-references:
+        # resources depend on the fabric, not the fabric on them. A generic edge
+        # FROM the fabric would make a shared VNet a hub that drags in every
+        # unrelated resource on it. Skip fabric as a SOURCE - the dependents still
+        # point AT it from their own side (vnet-integration, in-subnet).
+        if n.type in _FABRIC_TYPES:
+            continue
         for arm_id, path in _iter_arm_ids(n.raw.get("properties") or {}, "properties"):
             tgt = r.by_resource_id(arm_id)
             if (not tgt or tgt == n.id or (n.id, tgt) in known
