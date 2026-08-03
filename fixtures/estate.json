@@ -1,0 +1,373 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Web/serverfarms/nw-plan",
+    "name": "nw-plan",
+    "type": "Microsoft.Web/serverfarms",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "sku": {
+        "name": "P1v3"
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/virtualNetworks/nw-vnet",
+    "name": "nw-vnet",
+    "type": "Microsoft.Network/virtualNetworks",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "subnets": [
+        {
+          "name": "snet-apps"
+        },
+        {
+          "name": "snet-aks"
+        },
+        {
+          "name": "snet-pe"
+        },
+        {
+          "name": "snet-agw"
+        }
+      ]
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.OperationalInsights/workspaces/nw-law",
+    "name": "nw-law",
+    "type": "Microsoft.OperationalInsights/workspaces",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {}
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Insights/components/nw-appi",
+    "name": "nw-appi",
+    "type": "Microsoft.Insights/components",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "InstrumentationKey": "11111111-2222-3333-4444-555555555555",
+      "WorkspaceResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.OperationalInsights/workspaces/nw-law"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.ContainerRegistry/registries/nwacr",
+    "name": "nwacr",
+    "type": "Microsoft.ContainerRegistry/registries",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "loginServer": "nwacr.azurecr.io"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.KeyVault/vaults/nw-kv",
+    "name": "nw-kv",
+    "type": "Microsoft.KeyVault/vaults",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "vaultUri": "https://nw-kv.vault.azure.net/"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Sql/servers/nw-sql",
+    "name": "nw-sql",
+    "type": "Microsoft.Sql/servers",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "fullyQualifiedDomainName": "nw-sql.database.windows.net"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.DBforPostgreSQL/flexibleServers/nw-pg",
+    "name": "nw-pg",
+    "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "fullyQualifiedDomainName": "nw-pg.postgres.database.azure.com"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.DocumentDB/databaseAccounts/nw-cosmos",
+    "name": "nw-cosmos",
+    "type": "Microsoft.DocumentDB/databaseAccounts",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "documentEndpoint": "https://nw-cosmos.documents.azure.com:443/"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Cache/Redis/nw-redis",
+    "name": "nw-redis",
+    "type": "Microsoft.Cache/Redis",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "hostName": "nw-redis.redis.cache.windows.net"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.ServiceBus/namespaces/nw-sb",
+    "name": "nw-sb",
+    "type": "Microsoft.ServiceBus/namespaces",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "serviceBusEndpoint": "https://nw-sb.servicebus.windows.net:443/"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Storage/storageAccounts/nwstorage",
+    "name": "nwstorage",
+    "type": "Microsoft.Storage/storageAccounts",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {}
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Web/sites/nw-storefront",
+    "name": "nw-storefront",
+    "type": "Microsoft.Web/sites",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "serverFarmId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Web/serverfarms/nw-plan",
+      "virtualNetworkSubnetId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/virtualNetworks/nw-vnet/subnets/snet-apps",
+      "defaultHostName": "nw-storefront.azurewebsites.net",
+      "siteConfig": {
+        "linuxFxVersion": "DOCKER|nwacr.azurecr.io/storefront:1.2.0",
+        "appSettings": [
+          {
+            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+            "value": "11111111-2222-3333-4444-555555555555"
+          },
+          {
+            "name": "ConnectionStrings__Sql",
+            "value": "Server=tcp:nw-sql.database.windows.net,1433;Database=store;Authentication=Active Directory Default;"
+          },
+          {
+            "name": "Redis__Connection",
+            "value": "nw-redis.redis.cache.windows.net:6380,ssl=True,abortConnect=False"
+          },
+          {
+            "name": "Storage__Blob",
+            "value": "DefaultEndpointsProtocol=https;AccountName=nwstorage;EndpointSuffix=core.windows.net"
+          },
+          {
+            "name": "Secrets__DbPassword",
+            "value": "@Microsoft.KeyVault(SecretUri=https://nw-kv.vault.azure.net/secrets/db-password/)"
+          }
+        ]
+      }
+    },
+    "identity": {
+      "type": "SystemAssigned",
+      "principalId": "a1111111-1111-1111-1111-111111111111"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Web/sites/nw-api",
+    "name": "nw-api",
+    "type": "Microsoft.Web/sites",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "serverFarmId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Web/serverfarms/nw-plan",
+      "virtualNetworkSubnetId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/virtualNetworks/nw-vnet/subnets/snet-apps",
+      "defaultHostName": "nw-api.azurewebsites.net",
+      "siteConfig": {
+        "linuxFxVersion": "DOCKER|nwacr.azurecr.io/api:2.0.1",
+        "appSettings": [
+          {
+            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+            "value": "11111111-2222-3333-4444-555555555555"
+          },
+          {
+            "name": "ConnectionStrings__Pg",
+            "value": "Host=nw-pg.postgres.database.azure.com;Database=orders;Username=app;Ssl Mode=Require;"
+          },
+          {
+            "name": "ServiceBus__Connection",
+            "value": "Endpoint=sb://nw-sb.servicebus.windows.net/;SharedAccessKeyName=app;"
+          },
+          {
+            "name": "Cosmos__Endpoint",
+            "value": "AccountEndpoint=https://nw-cosmos.documents.azure.com:443/;"
+          },
+          {
+            "name": "Secrets__ApiKey",
+            "value": "@Microsoft.KeyVault(SecretUri=https://nw-kv.vault.azure.net/secrets/api-key/)"
+          }
+        ]
+      }
+    },
+    "identity": {
+      "type": "SystemAssigned",
+      "principalId": "b2222222-2222-2222-2222-222222222222"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.ContainerService/managedClusters/nw-aks",
+    "name": "nw-aks",
+    "type": "Microsoft.ContainerService/managedClusters",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "agentPoolProfiles": [
+        {
+          "name": "sys",
+          "vnetSubnetID": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/virtualNetworks/nw-vnet/subnets/snet-aks"
+        }
+      ],
+      "addonProfiles": {
+        "omsagent": {
+          "enabled": true,
+          "config": {
+            "logAnalyticsWorkspaceResourceID": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.OperationalInsights/workspaces/nw-law"
+          }
+        }
+      },
+      "identityProfile": {
+        "kubeletidentity": {
+          "objectId": "c3333333-3333-3333-3333-333333333333"
+        }
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/applicationGateways/nw-agw",
+    "name": "nw-agw",
+    "type": "Microsoft.Network/applicationGateways",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "gatewayIPConfigurations": [
+        {
+          "name": "gwip",
+          "properties": {
+            "subnet": {
+              "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/virtualNetworks/nw-vnet/subnets/snet-agw"
+            }
+          }
+        }
+      ],
+      "backendAddressPools": [
+        {
+          "name": "web",
+          "properties": {
+            "backendAddresses": [
+              {
+                "fqdn": "nw-storefront.azurewebsites.net"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/privateEndpoints/pe-sql",
+    "name": "pe-sql",
+    "type": "Microsoft.Network/privateEndpoints",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "subnet": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/virtualNetworks/nw-vnet/subnets/snet-pe"
+      },
+      "privateLinkServiceConnections": [
+        {
+          "name": "c",
+          "properties": {
+            "privateLinkServiceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Sql/servers/nw-sql"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/privateEndpoints/pe-kv",
+    "name": "pe-kv",
+    "type": "Microsoft.Network/privateEndpoints",
+    "resourceGroup": "rg-northwind-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000001",
+    "location": "westeurope",
+    "properties": {
+      "subnet": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Network/virtualNetworks/nw-vnet/subnets/snet-pe"
+      },
+      "privateLinkServiceConnections": [
+        {
+          "name": "c",
+          "properties": {
+            "privateLinkServiceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.KeyVault/vaults/nw-kv"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Authorization/roleAssignments/ra-sf-kv",
+    "name": "ra-sf-kv",
+    "type": "Microsoft.Authorization/roleAssignments",
+    "properties": {
+      "principalId": "a1111111-1111-1111-1111-111111111111",
+      "roleDefinitionName": "Key Vault Secrets User",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.KeyVault/vaults/nw-kv"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Authorization/roleAssignments/ra-sf-st",
+    "name": "ra-sf-st",
+    "type": "Microsoft.Authorization/roleAssignments",
+    "properties": {
+      "principalId": "a1111111-1111-1111-1111-111111111111",
+      "roleDefinitionName": "Storage Blob Data Contributor",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Storage/storageAccounts/nwstorage"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Authorization/roleAssignments/ra-api-kv",
+    "name": "ra-api-kv",
+    "type": "Microsoft.Authorization/roleAssignments",
+    "properties": {
+      "principalId": "b2222222-2222-2222-2222-222222222222",
+      "roleDefinitionName": "Key Vault Secrets User",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.KeyVault/vaults/nw-kv"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.Authorization/roleAssignments/ra-aks-acr",
+    "name": "ra-aks-acr",
+    "type": "Microsoft.Authorization/roleAssignments",
+    "properties": {
+      "principalId": "c3333333-3333-3333-3333-333333333333",
+      "roleDefinitionName": "AcrPull",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-northwind-dev/providers/Microsoft.ContainerRegistry/registries/nwacr"
+    }
+  }
+]

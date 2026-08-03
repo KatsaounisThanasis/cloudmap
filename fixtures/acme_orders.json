@@ -1,0 +1,87 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.Web/sites/webapp-orders-dev",
+    "name": "webapp-orders-dev",
+    "type": "microsoft.web/sites",
+    "resourceGroup": "rg-orders-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "location": "westeurope",
+    "identity": { "type": "SystemAssigned", "principalId": "11111111-1111-1111-1111-111111111111" },
+    "properties": {
+      "serverFarmId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.Web/serverfarms/plan-orders-dev",
+      "defaultHostName": "webapp-orders-dev.azurewebsites.net",
+      "siteConfig": {
+        "linuxFxVersion": "DOCKER|acrordersdev.azurecr.io/orders:latest",
+        "appSettings": [
+          { "name": "ConnectionStrings__Postgres", "value": "Host=pg-orders-dev.postgres.database.azure.com;Database=orders;Username=app;Password=REDACTED;SslMode=Require" },
+          { "name": "AzureWebJobsStorage", "value": "DefaultEndpointsProtocol=https;AccountName=stordersdev;AccountKey=REDACTED;EndpointSuffix=core.windows.net" }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.Web/serverfarms/plan-orders-dev",
+    "name": "plan-orders-dev",
+    "type": "microsoft.web/serverfarms",
+    "resourceGroup": "rg-orders-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "location": "westeurope",
+    "properties": {}
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-orders-dev",
+    "name": "pg-orders-dev",
+    "type": "microsoft.dbforpostgresql/flexibleservers",
+    "resourceGroup": "rg-orders-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "location": "westeurope",
+    "properties": { "fullyQualifiedDomainName": "pg-orders-dev.postgres.database.azure.com" }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.Storage/storageAccounts/stordersdev",
+    "name": "stordersdev",
+    "type": "microsoft.storage/storageaccounts",
+    "resourceGroup": "rg-orders-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "location": "westeurope",
+    "properties": {}
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.ContainerRegistry/registries/acrordersdev",
+    "name": "acrordersdev",
+    "type": "microsoft.containerregistry/registries",
+    "resourceGroup": "rg-orders-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "location": "westeurope",
+    "properties": { "loginServer": "acrordersdev.azurecr.io" }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.KeyVault/vaults/kv-orders-dev",
+    "name": "kv-orders-dev",
+    "type": "microsoft.keyvault/vaults",
+    "resourceGroup": "rg-orders-dev",
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "location": "westeurope",
+    "properties": { "vaultUri": "https://kv-orders-dev.vault.azure.net/" }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.ContainerRegistry/registries/acrordersdev/providers/Microsoft.Authorization/roleAssignments/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "name": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "type": "microsoft.authorization/roleassignments",
+    "properties": {
+      "principalId": "11111111-1111-1111-1111-111111111111",
+      "roleDefinitionName": "AcrPull",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.ContainerRegistry/registries/acrordersdev"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.KeyVault/vaults/kv-orders-dev/providers/Microsoft.Authorization/roleAssignments/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "name": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "type": "microsoft.authorization/roleassignments",
+    "properties": {
+      "principalId": "11111111-1111-1111-1111-111111111111",
+      "roleDefinitionName": "Key Vault Secrets User",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-orders-dev/providers/Microsoft.KeyVault/vaults/kv-orders-dev"
+    }
+  }
+]

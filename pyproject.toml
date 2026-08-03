@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudmap"
+version = "0.1.0"
+description = "Trace an Azure resource's full dependency graph (blast radius) and export it to draw.io."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "Thanasis Katsaounis" }]
+keywords = ["azure", "drawio", "architecture", "dependency-graph", "resource-graph", "diagrams"]
+dependencies = []
+
+# Runtime stays at zero dependencies on purpose; these are for working ON cloudmap.
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5"]
+
+[project.scripts]
+cloudmap = "cloudmap.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["cloudmap*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+# 112 is where the existing code already sits; picking 100 would mean reflowing
+# working extractors for cosmetics.
+line-length = 112
+target-version = "py39"
+
+# Pinned explicitly so `ruff check .` means the same thing in CI as on a laptop,
+# whatever the installed ruff's defaults happen to be.
+[tool.ruff.lint]
+# PERF is left out on purpose: it nags about append-in-a-loop in cold paths that
+# read better as loops, and nothing here is hot enough to trade clarity for.
+select = ["E", "F", "I", "B", "UP", "SIM"]
+# Broad excepts in ingest/azure.py are the design: every `az` call that can fail
+# is caught so the failure is REPORTED as a read gap instead of aborting the scan.
+ignore = ["BLE001"]
+
+[tool.ruff.lint.per-file-ignores]
+# Asset and template files: inlined SVG icons and the embedded JS/CSS of the
+# self-contained viewer. Their long lines are data, not prose.
+"cloudmap/render/azure_icons.py" = ["E501"]
+"cloudmap/render/html.py" = ["E501"]

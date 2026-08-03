@@ -1,0 +1,216 @@
+{
+  "note": "100% synthetic fixture. Fake subscription/tenant/principal ids. No real cloud data. Mirrors `az graph query -q resources -o json` output shape.",
+  "count": 15,
+  "data": [
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-app/providers/Microsoft.Web/sites/contoso-web",
+      "name": "contoso-web",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "rg-contoso-app",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "kind": "app,linux",
+      "identity": {"type": "SystemAssigned", "principalId": "10000000-0000-0000-0000-000000000001"},
+      "tags": {"app": "contoso", "env": "prod"},
+      "properties": {
+        "serverFarmId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-app/providers/Microsoft.Web/serverfarms/contoso-plan",
+        "virtualNetworkSubnetId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-app",
+        "defaultHostName": "contoso-web.azurewebsites.net",
+        "siteConfig": {
+          "appSettings": [
+            {"name": "KeyVaultSecret", "value": "@Microsoft.KeyVault(SecretUri=https://contoso-kv.vault.azure.net/secrets/db-password/)"},
+            {"name": "SqlConnection", "value": "Server=tcp:contoso-sql.database.windows.net,1433;Initial Catalog=appdb;Authentication=Active Directory Managed Identity;"},
+            {"name": "StorageConnection", "value": "BlobEndpoint=https://contosostg.blob.core.windows.net/;AccountName=contosostg;"},
+            {"name": "APPLICATIONINSIGHTS_CONNECTION_STRING", "value": "InstrumentationKey=aaaa1111-bbbb-2222-cccc-333344445555;IngestionEndpoint=https://westeurope-5.in.applicationinsights.azure.com/"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-app/providers/Microsoft.Web/serverfarms/contoso-plan",
+      "name": "contoso-plan",
+      "type": "microsoft.web/serverfarms",
+      "resourceGroup": "rg-contoso-app",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "kind": "linux",
+      "properties": {"sku": {"name": "P1v3", "tier": "PremiumV3"}}
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet",
+      "name": "contoso-vnet",
+      "type": "microsoft.network/virtualNetworks",
+      "resourceGroup": "rg-contoso-network",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {
+        "addressSpace": {"addressPrefixes": ["10.10.0.0/16"]},
+        "subnets": [
+          {"name": "snet-app", "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-app"},
+          {"name": "snet-pe", "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-pe"},
+          {"name": "snet-aks", "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-aks"},
+          {"name": "snet-agw", "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-agw"}
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.KeyVault/vaults/contoso-kv",
+      "name": "contoso-kv",
+      "type": "microsoft.keyvault/vaults",
+      "resourceGroup": "rg-contoso-shared",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {"vaultUri": "https://contoso-kv.vault.azure.net/", "enableRbacAuthorization": true}
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/privateEndpoints/pe-kv",
+      "name": "pe-kv",
+      "type": "microsoft.network/privateEndpoints",
+      "resourceGroup": "rg-contoso-network",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {
+        "subnet": {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-pe"},
+        "privateLinkServiceConnections": [
+          {"name": "kvconn", "properties": {"privateLinkServiceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.KeyVault/vaults/contoso-kv", "groupIds": ["vault"]}}
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-data/providers/Microsoft.Sql/servers/contoso-sql",
+      "name": "contoso-sql",
+      "type": "microsoft.sql/servers",
+      "resourceGroup": "rg-contoso-data",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {"fullyQualifiedDomainName": "contoso-sql.database.windows.net", "version": "12.0"}
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/privateEndpoints/pe-sql",
+      "name": "pe-sql",
+      "type": "microsoft.network/privateEndpoints",
+      "resourceGroup": "rg-contoso-network",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {
+        "subnet": {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-pe"},
+        "privateLinkServiceConnections": [
+          {"name": "sqlconn", "properties": {"privateLinkServiceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-data/providers/Microsoft.Sql/servers/contoso-sql", "groupIds": ["sqlServer"]}}
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-data/providers/Microsoft.Storage/storageAccounts/contosostg",
+      "name": "contosostg",
+      "type": "microsoft.storage/storageAccounts",
+      "resourceGroup": "rg-contoso-data",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "kind": "StorageV2",
+      "properties": {"primaryEndpoints": {"blob": "https://contosostg.blob.core.windows.net/"}}
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/privateEndpoints/pe-stg",
+      "name": "pe-stg",
+      "type": "microsoft.network/privateEndpoints",
+      "resourceGroup": "rg-contoso-network",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {
+        "subnet": {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-pe"},
+        "privateLinkServiceConnections": [
+          {"name": "stgconn", "properties": {"privateLinkServiceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-data/providers/Microsoft.Storage/storageAccounts/contosostg", "groupIds": ["blob"]}}
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.Insights/components/contoso-appi",
+      "name": "contoso-appi",
+      "type": "microsoft.insights/components",
+      "resourceGroup": "rg-contoso-shared",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "kind": "web",
+      "properties": {
+        "InstrumentationKey": "aaaa1111-bbbb-2222-cccc-333344445555",
+        "WorkspaceResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.OperationalInsights/workspaces/contoso-law"
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.OperationalInsights/workspaces/contoso-law",
+      "name": "contoso-law",
+      "type": "microsoft.operationalinsights/workspaces",
+      "resourceGroup": "rg-contoso-shared",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {"sku": {"name": "PerGB2018"}}
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/applicationGateways/contoso-agw",
+      "name": "contoso-agw",
+      "type": "microsoft.network/applicationGateways",
+      "resourceGroup": "rg-contoso-network",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {
+        "gatewayIPConfigurations": [
+          {"name": "agwip", "properties": {"subnet": {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-agw"}}}
+        ],
+        "backendAddressPools": [
+          {"name": "webpool", "properties": {"backendAddresses": [{"fqdn": "contoso-web.azurewebsites.net"}]}}
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-app/providers/Microsoft.ContainerService/managedClusters/contoso-aks",
+      "name": "contoso-aks",
+      "type": "microsoft.containerservice/managedClusters",
+      "resourceGroup": "rg-contoso-app",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "identity": {"type": "SystemAssigned", "principalId": "10000000-0000-0000-0000-000000000002"},
+      "properties": {
+        "nodeResourceGroup": "mc_rg-contoso-app_contoso-aks_westeurope",
+        "agentPoolProfiles": [
+          {"name": "system", "vnetSubnetID": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-network/providers/Microsoft.Network/virtualNetworks/contoso-vnet/subnets/snet-aks"}
+        ],
+        "addonProfiles": {
+          "omsagent": {"enabled": true, "config": {"logAnalyticsWorkspaceResourceID": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.OperationalInsights/workspaces/contoso-law"}}
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.ContainerRegistry/registries/contosoacr",
+      "name": "contosoacr",
+      "type": "microsoft.containerregistry/registries",
+      "resourceGroup": "rg-contoso-shared",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "location": "westeurope",
+      "properties": {"loginServer": "contosoacr.azurecr.io"}
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.Authorization/roleAssignments/ra-web-kv",
+      "name": "ra-web-kv",
+      "type": "microsoft.authorization/roleAssignments",
+      "resourceGroup": "rg-contoso-shared",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "properties": {
+        "principalId": "10000000-0000-0000-0000-000000000001",
+        "roleDefinitionId": "/subscriptions/11111111-1111-1111-1111-111111111111/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+        "scope": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.KeyVault/vaults/contoso-kv"
+      }
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.Authorization/roleAssignments/ra-aks-acr",
+      "name": "ra-aks-acr",
+      "type": "microsoft.authorization/roleAssignments",
+      "resourceGroup": "rg-contoso-shared",
+      "subscriptionId": "11111111-1111-1111-1111-111111111111",
+      "properties": {
+        "principalId": "10000000-0000-0000-0000-000000000002",
+        "roleDefinitionId": "/subscriptions/11111111-1111-1111-1111-111111111111/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d",
+        "scope": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-contoso-shared/providers/Microsoft.ContainerRegistry/registries/contosoacr"
+      }
+    }
+  ]
+}

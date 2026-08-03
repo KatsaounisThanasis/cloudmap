@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# generated diagram output
+*.blast.drawio
+*.mmd
+out/
+
+# never commit anything pulled from a live cloud
+live/
+*.live.json
