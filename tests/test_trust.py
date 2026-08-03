@@ -266,3 +266,37 @@ def test_ml_workspace_maps_its_backing_platform():
     assert kinds == {"st": "connects-to", "kv": "reads-secret",
                      "ai": "sends-telemetry", "acr": "pulls-image"}
     assert all(e.evidence for e in edges)
+
+
+def test_generic_arm_reference_maps_any_type():
+    # A type with no hand-written rule still names other resources by ARM id deep
+    # in its properties; those become deterministic 'references' edges with the
+    # property path as proof. This is what lets cloudmap map anything.
+    from cloudmap.graph import build_graph
+
+    S = "/subscriptions/s/resourceGroups/rg/providers"
+    thing = {"id": f"{S}/Microsoft.Some/thing/x", "name": "x", "type": "microsoft.some/thing",
+             "properties": {"deep": {"nested": {"targetId": f"{S}/Microsoft.KeyVault/vaults/kv"}}}}
+    kv = {"id": f"{S}/Microsoft.KeyVault/vaults/kv", "name": "kv", "type": "microsoft.keyvault/vaults"}
+    edges = [e for e in build_graph([thing, kv]).edges
+             if e.source == thing["id"] and e.target == kv["id"]]
+
+    assert edges and edges[0].kind == "references"
+    assert edges[0].origin == "extracted"          # deterministic: the id is really there
+    assert "targetId" in edges[0].evidence          # the property path is the proof
+
+
+def test_generic_pass_does_not_shadow_a_semantic_edge():
+    # A rule that already named the pair (hosted-on) wins; the generic pass must
+    # not append a redundant 'references'.
+    from cloudmap.graph import build_graph
+
+    S = "/subscriptions/s/resourceGroups/rg/providers"
+    web = {"id": f"{S}/Microsoft.Web/sites/w", "name": "w", "type": "microsoft.web/sites",
+           "properties": {"serverFarmId": f"{S}/Microsoft.Web/serverfarms/p"}}
+    plan = {"id": f"{S}/Microsoft.Web/serverfarms/p", "name": "p",
+            "type": "microsoft.web/serverfarms"}
+    kinds = [e.kind for e in build_graph([web, plan]).edges
+             if e.source == web["id"] and e.target == plan["id"]]
+
+    assert kinds == ["hosted-on"]                   # not "hosted-on; references"

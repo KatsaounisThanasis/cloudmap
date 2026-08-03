@@ -277,6 +277,24 @@ class Resolver:
         return self.by_host.get((host or "").lower())
 
 
+def _iter_arm_ids(obj, path):
+    """Yield (arm_id, dotted_path) for every value under `obj` that is itself a
+    whole ARM resource id. The path becomes the edge's proof. Substrings inside
+    URIs are not matched (the value must BE an id), and the resolver is the real
+    filter - an id that names nothing we scanned yields no edge."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield from _iter_arm_ids(v, f"{path}.{k}")
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _iter_arm_ids(v, f"{path}[]")
+    elif isinstance(obj, str):
+        s = obj.strip()
+        low = s.lower()
+        if low.startswith("/subscriptions/") and "/providers/" in low:
+            yield s, path
+
+
 def extract_edges(nodes):
     """ARM-derivable edges over the whole scanned set. Targets that do not
     resolve are dropped here (they would be noise at tenant scale); the seed's
@@ -364,6 +382,23 @@ def extract_edges(nodes):
             _containerapp_edges(n, p, r, add)
         elif t == "microsoft.app/managedenvironments":
             _managedenv_edges(n, p, r, add)
+
+    # Generic ARM-reference pass. Any resolvable resource id sitting in a
+    # resource's properties is a real dependency, whatever the type - this is
+    # what lets cloudmap map resource types it has no hand-written rule for,
+    # deterministically, with the property path as proof. A semantic rule that
+    # already named a pair wins (kept as-is); the generic edge only fills gaps.
+    known = {(e.source, e.target) for e in edges}
+    for n in nodes.values():
+        if n.type == "microsoft.authorization/roleassignments":
+            continue                      # plumbing we derive edges FROM, not a map node
+        for arm_id, path in _iter_arm_ids(n.raw.get("properties") or {}, "properties"):
+            tgt = r.by_resource_id(arm_id)
+            if (not tgt or tgt == n.id or (n.id, tgt) in known
+                    or nodes[tgt].type == "microsoft.authorization/roleassignments"):
+                continue
+            add(n.id, tgt, "references", path)
+            known.add((n.id, tgt))
 
     return _dedupe(edges)
 
