@@ -13,6 +13,7 @@ authors = [{ name = "Thanasis Katsaounis" }]
 keywords = ["azure", "drawio", "architecture", "dependency-graph", "resource-graph", "diagrams"]
 dependencies = [
     "questionary>=2.0.0",
+    "rich>=13.0.0",
 ]
 
 # Runtime stays at zero dependencies on purpose; these are for working ON cloudmap.
