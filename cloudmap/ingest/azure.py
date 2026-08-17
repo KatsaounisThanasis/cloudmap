@@ -31,9 +31,18 @@ _KV_REF = re.compile(r"@microsoft\.keyvault\(([^)]*)\)", re.I)
 
 def _az(args):
     # --only-show-errors suppresses az deprecation/upgrade chatter so a genuine
-    # failure (the message we surface as a read-gap) is not buried in noise.
-    out = subprocess.run(["az"] + args + ["--only-show-errors"],
-                         capture_output=True, text=True)
+    # stdout JSON doesn't get corrupted by warnings.
+    cmd = ["az"] + args + ["--only-show-errors"]
+    
+    # If the user pinned a specific subscription (e.g. cross-tenant QA sub),
+    # force the CLI to use that context for every command to avoid "Given: ''" errors.
+    pin = os.environ.get("CLOUDMAP_ALLOW_SUBSCRIPTION", "").strip()
+    if pin and "--subscription" not in cmd:
+        # az account list does not accept --subscription
+        if not (args[0] == "account" and len(args) > 1 and args[1] == "list"):
+            cmd += ["--subscription", pin]
+            
+    out = subprocess.run(cmd, capture_output=True, text=True)
     if out.returncode != 0:
         raise RuntimeError(f"az {' '.join(args)} failed: {out.stderr.strip()}")
     return out.stdout
