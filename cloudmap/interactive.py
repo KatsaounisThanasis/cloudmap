@@ -86,10 +86,10 @@ def interactive_main():
     query = """
     Resources 
     | where type in ('microsoft.web/sites', 'microsoft.containerservice/managedclusters', 'microsoft.app/containerapps') 
-    | project name, type, resourceGroup 
+    | project id, name, type, resourceGroup 
     | order by name asc
     """
-    res = run_az(f"az graph query -q \"{query}\" --subscriptions {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
+    res = run_az(f"az graph query -q \"{query}\" --subscriptions {sub_id} --subscription {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
     
     if not res:
         console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
@@ -106,17 +106,20 @@ def interactive_main():
         icon = "☸️ " if "managedclusters" in r['type'].lower() else ("🌐" if "sites" in r['type'].lower() else "📦")
         # Format: Icon  Name   (Type)   [RG]
         display = f"{icon} {r['name'].ljust(30)} {rtype.ljust(18)} [dim]RG: {r['resourceGroup']}[/dim]"
-        res_choices.append(questionary.Choice(title=display, value=r['name']))
+        res_choices.append(questionary.Choice(title=display, value={"id": r['id'], "name": r['name']}))
     
-    res_name = questionary.select(
+    selected_res = questionary.select(
         "Select a resource to trace:", 
         choices=res_choices, 
         style=custom_style,
         instruction="(Use arrow keys or type to search)"
     ).ask()
     
-    if not res_name:
+    if not selected_res:
         return 0
+        
+    res_id = selected_res["id"]
+    res_name = selected_res["name"]
         
     # 3. Enrichment Mode
     enrich = questionary.select(
@@ -142,7 +145,7 @@ def interactive_main():
     out_mmd = f"{res_name}.mmd"
     
     args = [
-        "trace", res_name,
+        "trace", res_id,
         "--live", "--allow-live",
         "--single-sub",
         "--enrich", enrich,

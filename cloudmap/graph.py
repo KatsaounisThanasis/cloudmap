@@ -165,7 +165,7 @@ def build_graph(resources):
 
 def find_seeds(graph, name):
     name_l = name.lower()
-    exact = [n.id for n in graph.nodes.values() if n.name.lower() == name_l]
+    exact = [n.id for n in graph.nodes.values() if n.name.lower() == name_l or n.id.lower() == name_l]
     if exact:
         return exact
     return [n.id for n in graph.nodes.values()
