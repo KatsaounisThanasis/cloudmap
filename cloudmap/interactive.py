@@ -17,13 +17,13 @@ def run_az(cmd, console=None, loading_msg="Loading..."):
     def _exec():
         try:
             res = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
-            return json.loads(res.stdout) if res.stdout.strip() else []
+            return json.loads(res.stdout) if res.stdout.strip() else None
         except subprocess.CalledProcessError as e:
             if console:
                 console.print(f"[bold red]Azure CLI Error:[/bold red] {e.stderr}")
-            return []
+            return None
         except json.JSONDecodeError:
-            return []
+            return None
 
     if console and loading_msg:
         with console.status(f"[bold cyan]{loading_msg}[/bold cyan]", spinner="dots"):
@@ -69,15 +69,18 @@ def interactive_main():
         default_tag = " [bold green](Default)[/bold green]" if s.get('isDefault') else ""
         sub_choices.append(questionary.Choice(title=f"{s['name']}  [dim]{s['id']}[/dim]", value=s['id']))
     
-    sub_id = questionary.select(
+    chosen_sub = questionary.select(
         "Select an Azure Subscription:", 
         choices=sub_choices,
         style=custom_style,
         instruction="(Use arrow keys)"
     ).ask()
     
-    if not sub_id:
+    if not chosen_sub:
         return 0
+    
+    # chosen_sub is already the subscription ID because we passed it in value=
+    sub_id = str(chosen_sub).strip()
     
     # 2. Get resources (Optimized ARG query)
     query = """
@@ -88,6 +91,10 @@ def interactive_main():
     """
     res = run_az(f"az graph query -q \"{query}\" --subscriptions {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
     
+    if not res:
+        console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
+        return 1
+        
     data = res.get("data", [])
     if not data:
         console.print("[bold yellow]No workloads (Web Apps / AKS / Container Apps) found in this subscription.[/bold yellow]")
