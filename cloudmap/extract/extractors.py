@@ -407,6 +407,8 @@ def extract_edges(nodes):
             _containerapp_edges(n, p, r, add)
         elif t == "microsoft.app/managedenvironments":
             _managedenv_edges(n, p, r, add)
+        elif t == "microsoft.containerservice/managedclusters":
+            _aks_config_edges(n, p, r, add)
 
     # Generic ARM-reference pass. Any resolvable resource id sitting in a
     # resource's properties is a real dependency, whatever the type - this is
@@ -536,6 +538,38 @@ def _managedenv_edges(n, p, r, add):
     if cid:
         add(n.id, r.law_by_customer_id.get(cid), "uses-workspace",
             "appLogsConfiguration.logAnalyticsConfiguration.customerId")
+
+
+def _aks_config_edges(n, p, r, add):
+    """Extract dependencies from an AKS cluster's Kubernetes manifests."""
+    k8s_text = n.raw.get("kubernetes_text") or ""
+    
+    values = []
+    import base64
+    
+    for line in k8s_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("image:"):
+            image = line[6:]
+            m = re.match(r"([a-z0-9.\-]+\.azurecr\.io)/", image.lower())
+            if m:
+                add(n.id, r.acr_by_loginserver.get(m.group(1)), "pulls-image",
+                    f"Pod container image {m.group(1)}")
+        elif line.startswith("env:"):
+            values.append(line[4:])
+        elif line.startswith("cm:"):
+            values.append(line[3:])
+        elif line.startswith("sec:"):
+            try:
+                # Kubernetes secrets are base64 encoded
+                decoded = base64.b64decode(line[4:]).decode("utf-8", errors="ignore")
+                values.append(decoded)
+            except Exception:
+                pass
+                    
+    _config_edges(n, values, r, add, label="AKS workload config")
 
 
 def seed_external_dependencies(seed_node, resolver):

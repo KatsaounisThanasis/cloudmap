@@ -274,3 +274,57 @@ def enrich_webapp(raw, resolve_secrets=False):
             result["errors"].append(f"diagnostic settings (az monitor diagnostic-settings list): {e}")
 
     return result
+
+
+def enrich_aks_clusters(raws, resolve_secrets=False, max_workers=4):
+    from concurrent.futures import ThreadPoolExecutor
+
+    merged = {"errors": [], "enriched": []}
+    if not raws:
+        return merged
+
+    def one(raw):
+        return raw, enrich_aks(raw, resolve_secrets=resolve_secrets)
+
+    with ThreadPoolExecutor(max_workers=max(1, min(max_workers, len(raws)))) as pool:
+        for raw, res in pool.map(one, raws):
+            label = raw.get("name") or raw.get("id") or "?"
+            merged["errors"].extend(f"{label}: {m}" for m in res["errors"])
+            merged["enriched"].append(raw.get("id"))
+    return merged
+
+
+def enrich_aks(raw, resolve_secrets=False):
+    """Deep-enrich an AKS cluster by reading its Kubernetes manifests via az aks command invoke."""
+    name, rg = raw.get("name"), raw.get("resourceGroup")
+    result = {"errors": []}
+    if not (name and rg):
+        result["errors"].append("aks has no name/resourceGroup; skipped deep enrich")
+        return result
+        
+    try:
+        # We query pods (images, env vars), configmaps (hostnames), and secrets (hostnames)
+        # using go-templates to extract ONLY the values we care about, as plain text.
+        # This reduces a 10MB+ JSON payload down to a few KB, bypassing the 512KB Azure limit.
+        tpl_pods = '{{range .items}}{{range .spec.containers}}{{if .image}}image:{{.image}}{{println}}{{end}}{{range .env}}{{if .value}}env:{{.value}}{{println}}{{end}}{{end}}{{end}}{{end}}'
+        tpl_cm = '{{range .items}}{{if .data}}{{range .data}}cm:{{.}}{{println}}{{end}}{{end}}{{end}}'
+        tpl_sec = '{{range .items}}{{if .data}}{{range .data}}sec:{{.}}{{println}}{{end}}{{end}}{{end}}'
+        
+        cmd = [
+            "aks", "command", "invoke", "-g", rg, "-n", name, 
+            "-c", f"kubectl get pods -A -o go-template='{tpl_pods}' && kubectl get configmaps -A -o go-template='{tpl_cm}' && kubectl get secrets -A -o go-template='{tpl_sec}'",
+            "-o", "json"
+        ]
+        out = json.loads(_az(cmd))
+        if str(out.get("exitCode", "")) == "0" or out.get("exitCode") == 0:
+            logs = out.get("logs", "")
+            if "error: " in logs.lower() and not logs.strip().startswith("image:"):
+                result["errors"].append(f"kubectl template error: {logs}")
+            else:
+                raw["kubernetes_text"] = logs
+        else:
+            result["errors"].append(f"kubectl failed: {out.get('logs')}")
+    except Exception as e:
+        result["errors"].append(f"az aks command invoke: {e}")
+        
+    return result

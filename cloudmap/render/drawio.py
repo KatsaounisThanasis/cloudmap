@@ -37,6 +37,8 @@ EDGE_STYLE = ("edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;"
               "fontSize=10;fontColor=#555555;")
 # Model-proposed edges are drawn dashed + red so a guess never looks like a fact.
 EDGE_MODEL_STYLE = EDGE_STYLE + "dashed=1;strokeColor=#b85450;fontColor=#b85450;"
+# RBAC edges are drawn orange/thick to highlight security access paths
+EDGE_RBAC_STYLE = EDGE_STYLE + "strokeColor=#d79b00;fontColor=#b07d00;strokeWidth=2;"
 
 
 def _short_type(t):
@@ -52,17 +54,25 @@ def to_drawio(graph, seed_id):
 
     xstep, ystep = 240, 120
     pos = {}
+    
+    # Calculate max height to vertically center smaller layers
+    max_rows = max((len(col) for col in layers.values()), default=0)
+    max_height = max_rows * ystep
+    
     for layer in sorted(layers):
         col = sorted(layers[layer], key=lambda i: graph.nodes[i].name)
+        layer_height = len(col) * ystep
+        y_offset = (max_height - layer_height) // 2
+        
         for row, nid in enumerate(col):
-            pos[nid] = (60 + layer * xstep, 60 + row * ystep)
+            pos[nid] = (60 + layer * xstep, 60 + y_offset + row * ystep)
 
     cells, idmap = [], {}
     for i, nid in enumerate(graph.nodes):
         cid = f"n{i}"
         idmap[nid] = cid
         n = graph.nodes[nid]
-        label = escape(f"{n.name} ({_short_type(n.type)})")
+        label = f"{n.name} ({_short_type(n.type)})"
         icon = None if n.external else AZURE_ICON.get(n.type)
         if icon:
             style, w, h = ICON_STYLE.format(path=icon), 48, 48
@@ -73,10 +83,31 @@ def to_drawio(graph, seed_id):
         if nid == seed_id:
             style += SEED_EXTRA
         x, y = pos[nid]
+        
+        attrs = [
+            f'id="{cid}"',
+            f'label={quoteattr(label)}',
+            f'type={quoteattr(n.type)}',
+        ]
+        if n.resource_group:
+            attrs.append(f'ResourceGroup={quoteattr(n.resource_group)}')
+        if n.location:
+            attrs.append(f'Location={quoteattr(n.location)}')
+        if n.subscription:
+            attrs.append(f'Subscription={quoteattr(n.subscription)}')
+        if n.note:
+            attrs.append(f'Note={quoteattr(n.note)}')
+        if not str(nid).startswith("type::") and not str(nid).startswith("ext::"):
+            attrs.append(f'ARM_ID={quoteattr(str(nid))}')
+            
+        attr_str = " ".join(attrs)
+        
         cells.append(
-            f'        <mxCell id="{cid}" value={quoteattr(label)} '
-            f'style={quoteattr(style)} vertex="1" parent="1">'
-            f'<mxGeometry x="{x}" y="{y}" width="{w}" height="{h}" as="geometry"/></mxCell>'
+            f'        <object {attr_str}>\n'
+            f'          <mxCell style={quoteattr(style)} vertex="1" parent="1">\n'
+            f'            <mxGeometry x="{x}" y="{y}" width="{w}" height="{h}" as="geometry"/>\n'
+            f'          </mxCell>\n'
+            f'        </object>'
         )
 
     for j, e in enumerate(graph.edges):
@@ -84,10 +115,18 @@ def to_drawio(graph, seed_id):
         if not (s and t):
             continue
         model = e.origin == "model"
-        style = EDGE_MODEL_STYLE if model else EDGE_STYLE
+        rbac = "role:" in e.kind.lower()
+        
+        if model:
+            style = EDGE_MODEL_STYLE
+        elif rbac:
+            style = EDGE_RBAC_STYLE
+        else:
+            style = EDGE_STYLE
+            
         label = e.kind + ("  (model)" if model else "")
         cells.append(
-            f'        <mxCell id="e{j}" value={quoteattr(escape(label))} '
+            f'        <mxCell id="e{j}" value={quoteattr(label)} '
             f'style={quoteattr(style)} edge="1" parent="1" '
             f'source="{s}" target="{t}"><mxGeometry relative="1" as="geometry"/></mxCell>'
         )

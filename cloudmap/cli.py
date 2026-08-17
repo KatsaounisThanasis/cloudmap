@@ -164,15 +164,16 @@ def _cmd_trace(args):
 
 
 _WEBAPP = "microsoft.web/sites"
+_AKS = "microsoft.containerservice/managedclusters"
 # Workloads whose dependencies live in free-text config, so an unresolved
 # reference is worth resurfacing as an explicit external node. Container apps are
 # here but not in the enrichment list: Resource Graph already returns their
 # template, so there is nothing extra to fetch.
-_CONFIG_WORKLOADS = (_WEBAPP, "microsoft.app/containerapps")
+_CONFIG_WORKLOADS = (_WEBAPP, "microsoft.app/containerapps", _AKS)
 
 
 def _enrichment_targets(graph, seed, mode, direction):
-    """Which web apps to deep-enrich, and which stay a blind spot.
+    """Which workloads to deep-enrich, and which stay a blind spot.
 
     An app's config-level dependencies exist nowhere until that app is enriched,
     but enriching a whole tenant on every trace costs an `az` round-trip per app.
@@ -181,39 +182,54 @@ def _enrichment_targets(graph, seed, mode, direction):
     seed (Key Vault, database, plan) can only learn its dependents from the
     config of the apps pointing at it.
     """
-    apps = [n for n in graph.nodes.values() if n.type == _WEBAPP]
-    seed_only = [n for n in apps if n.id == seed]
+    workloads = [n for n in graph.nodes.values() if n.type in (_WEBAPP, _AKS)]
+    seed_only = [n for n in workloads if n.id == seed]
+    
     if mode == "none":
         chosen = []
     elif mode == "all":
-        chosen = apps
+        chosen = workloads
     elif mode == "seed" or seed_only and direction != "up":
         chosen = seed_only
     else:
-        chosen = apps
+        chosen = workloads
+        
     picked = {n.id for n in chosen}
-    return chosen, [n for n in apps if n.id not in picked]
+    return chosen, [n for n in workloads if n.id not in picked]
 
 
 def _enrich_live(args, graph, seed, resources):
-    """Deep-enrich web apps, re-extract, and name what stayed invisible.
+    """Deep-enrich workloads, re-extract, and name what stayed invisible.
     Returns (graph, read_gaps, blind_spots) - `resources` is extended in place."""
     from .extract.extractors import Resolver, _dedupe, seed_external_dependencies
-    from .ingest.azure import enrich_webapps
+    from .ingest.azure import enrich_webapps, enrich_aks_clusters
 
     targets, skipped = _enrichment_targets(graph, seed, args.enrich, args.direction)
     read_gaps, blind_spots = [], []
 
     if targets:
-        print(f"Deep-enriching {len(targets)} web app(s) - app settings, connection "
-              f"strings, RBAC, diagnostics...", file=sys.stderr)
-        enr = enrich_webapps([n.raw for n in targets], resolve_secrets=args.resolve_secrets)
-        read_gaps = enr["errors"]
+        apps = [n for n in targets if n.type == _WEBAPP]
+        akss = [n for n in targets if n.type == _AKS]
+        
+        diagnostics = []
+        if apps:
+            print(f"Deep-enriching {len(apps)} web app(s) - app settings, connection "
+                  f"strings, RBAC, diagnostics...", file=sys.stderr)
+            enr = enrich_webapps([n.raw for n in apps], resolve_secrets=args.resolve_secrets)
+            read_gaps.extend(enr["errors"])
+            resources.extend(enr["role_assignments"])
+            diagnostics.extend(enr["diagnostics"])
+            
+        if akss:
+            print(f"Deep-enriching {len(akss)} AKS cluster(s) - reading Kubernetes manifests...", file=sys.stderr)
+            enr_aks = enrich_aks_clusters([n.raw for n in akss], resolve_secrets=args.resolve_secrets)
+            read_gaps.extend(enr_aks["errors"])
+
         if read_gaps:
             print("Read gaps while enriching (edges below may be INCOMPLETE):", file=sys.stderr)
             for msg in read_gaps:
                 print(f"  ! could not read {msg}", file=sys.stderr)
-        resources.extend(enr["role_assignments"])
+                
         graph = build_graph(resources)            # re-extract, now that config is present
         resolver = Resolver(graph.nodes)
 
@@ -225,7 +241,7 @@ def _enrich_live(args, graph, seed, resources):
                 graph.nodes.setdefault(nd.id, nd)
             graph.edges.extend(ext_edges)
 
-        for app_id, tid in enr["diagnostics"]:
+        for app_id, tid in diagnostics:
             if app_id not in graph.nodes:
                 continue
             target = resolver.by_resource_id(tid)
@@ -241,9 +257,9 @@ def _enrich_live(args, graph, seed, resources):
     # an empty upward view read as "nothing depends on this".
     if skipped and args.direction != "down":
         blind_spots.append(
-            f"{len(skipped)} web app(s) in scope were not deep-enriched, so anything that "
-            f"depends on this resource through app config (Key Vault references, connection "
-            f"strings, backend hostnames) cannot appear as an inbound edge. "
+            f"{len(skipped)} workload(s) in scope were not deep-enriched, so anything that "
+            f"depends on this resource through config (Key Vault references, connection "
+            f"strings, hostnames) cannot appear as an inbound edge. "
             f"Re-run with --enrich all to close this gap."
         )
     return graph, read_gaps, blind_spots
@@ -262,12 +278,19 @@ def _cmd_capture(args):
                                       tenant_wide=not args.single_sub)
     if args.enrich == "all":
         apps = [r for r in resources if str(r.get("type", "")).lower() == _WEBAPP]
-        print(f"Deep-enriching {len(apps)} web app(s) so the capture includes the "
-              f"dependencies that only exist in app config...", file=sys.stderr)
-        enr = enrich_webapps(apps, resolve_secrets=args.resolve_secrets)
-        for msg in enr["errors"]:
-            print(f"  ! could not read {msg}", file=sys.stderr)
-        resources.extend(enr["role_assignments"])
+        akss = [r for r in resources if str(r.get("type", "")).lower() == _AKS]
+        if apps:
+            print(f"Deep-enriching {len(apps)} web app(s) so the capture includes the "
+                  f"dependencies that only exist in app config...", file=sys.stderr)
+            enr = enrich_webapps(apps, resolve_secrets=args.resolve_secrets)
+            for msg in enr["errors"]:
+                print(f"  ! could not read {msg}", file=sys.stderr)
+            resources.extend(enr["role_assignments"])
+        if akss:
+            print(f"Deep-enriching {len(akss)} AKS cluster(s) to capture Kubernetes manifests...", file=sys.stderr)
+            enr_aks = enrich_aks_clusters(akss, resolve_secrets=args.resolve_secrets)
+            for msg in enr_aks["errors"]:
+                print(f"  ! could not read {msg}", file=sys.stderr)
 
     stats = None
     if args.no_scrub:
