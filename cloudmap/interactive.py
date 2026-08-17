@@ -73,8 +73,7 @@ def interactive_main():
         "Select an Azure Subscription:", 
         choices=sub_choices,
         style=custom_style,
-        use_search=True,
-        instruction="(Type to search, Enter to select)"
+        instruction="(Use arrow keys)"
     ).ask()
     
     if not sub_id:
@@ -106,8 +105,7 @@ def interactive_main():
         "Select a resource to trace:", 
         choices=res_choices, 
         style=custom_style,
-        use_search=True,
-        instruction="(Type to search workloads)"
+        instruction="(Use arrow keys or type to search)"
     ).ask()
     
     if not res_name:
