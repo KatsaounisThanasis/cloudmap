@@ -13,6 +13,11 @@ from .render.mermaid import to_mermaid
 
 
 def main(argv=None):
+    # Interactive mode if no arguments are provided
+    if (argv is None and len(sys.argv) == 1) or (argv is not None and len(argv) == 0):
+        from .interactive import interactive_main
+        return interactive_main()
+        
     parser = argparse.ArgumentParser(
         prog="cloudmap",
         description="Trace an Azure resource's full dependency graph (blast radius) "
