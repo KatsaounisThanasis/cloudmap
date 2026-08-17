@@ -100,12 +100,33 @@ def interactive_main():
         console.print("[bold yellow]No workloads (Web Apps / AKS / Container Apps) found in this subscription.[/bold yellow]")
         return 0
         
+    # 2.5 Select Resource Group (Cascading)
+    unique_rgs = sorted(list(set(r['resourceGroup'] for r in data)))
+    rg_choices = [questionary.Choice(title="🌟 [All Resource Groups]", value="ALL")]
+    for rg in unique_rgs:
+        rg_choices.append(questionary.Choice(title=f"📁 {rg}", value=rg))
+        
+    selected_rg = questionary.select(
+        "Select a Resource Group:", 
+        choices=rg_choices, 
+        style=custom_style,
+        instruction="(Use arrow keys or type to search)"
+    ).ask()
+    
+    if not selected_rg:
+        return 0
+        
+    if selected_rg != "ALL":
+        data = [r for r in data if r['resourceGroup'] == selected_rg]
+        
+    # 3. Select Resource
     res_choices = []
     for r in data:
         rtype = r['type'].split('/')[-1]
         icon = "☸️ " if "managedclusters" in r['type'].lower() else ("🌐" if "sites" in r['type'].lower() else "📦")
-        # Format: Icon  Name   (Type)   [RG]
-        display = f"{icon} {r['name'].ljust(30)} {rtype.ljust(18)} [dim]RG: {r['resourceGroup']}[/dim]"
+        # Format: Icon  Name   (Type)   [RG] (only show RG dim if ALL was selected)
+        rg_dim = f" [dim]RG: {r['resourceGroup']}[/dim]" if selected_rg == "ALL" else ""
+        display = f"{icon} {r['name'].ljust(30)} {rtype.ljust(18)}{rg_dim}"
         res_choices.append(questionary.Choice(title=display, value={"id": r['id'], "name": r['name']}))
     
     selected_res = questionary.select(
