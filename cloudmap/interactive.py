@@ -85,11 +85,19 @@ def interactive_main():
     # 2. Get resources (Optimized ARG query)
     query = """
     Resources 
-    | where type in ('microsoft.web/sites', 'microsoft.containerservice/managedclusters', 'microsoft.app/containerapps') 
+    | where type in (
+        'microsoft.web/sites', 
+        'microsoft.containerservice/managedclusters', 
+        'microsoft.app/containerapps',
+        'microsoft.compute/virtualmachines',
+        'microsoft.apimanagement/service',
+        'microsoft.sql/servers/databases',
+        'microsoft.dbforpostgresql/flexibleservers'
+    ) 
     | project id, name, type, resourceGroup 
     | order by name asc
     """
-    res = run_az(f"az graph query -q \"{query}\" --subscriptions {sub_id} --subscription {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
+    res = run_az(f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id} --subscription {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
     
     if not res:
         console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
