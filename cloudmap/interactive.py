@@ -8,7 +8,6 @@ try:
     from questionary import Style
     from rich.console import Console
     from rich.panel import Panel
-    from rich.text import Text
 except ImportError:
     questionary = None
 
@@ -18,6 +17,10 @@ def run_az(cmd, console=None, loading_msg="Loading..."):
         try:
             res = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
             return json.loads(res.stdout) if res.stdout.strip() else None
+        except FileNotFoundError:
+            if console:
+                console.print("[bold red]Error:[/bold red] Azure CLI ('az') is not installed or not in PATH.")
+            return None
         except subprocess.CalledProcessError as e:
             if console:
                 console.print(f"[bold red]Azure CLI Error:[/bold red] {e.stderr}")
@@ -67,7 +70,7 @@ def interactive_main():
     sub_choices = []
     for s in subs:
         default_tag = " [bold green](Default)[/bold green]" if s.get('isDefault') else ""
-        sub_choices.append(questionary.Choice(title=f"{s['name']}  [dim]{s['id']}[/dim]", value=s['id']))
+        sub_choices.append(questionary.Choice(title=f"{s['name']}{default_tag}  [dim]{s['id']}[/dim]", value=s['id']))
     
     chosen_sub = questionary.select(
         "Select an Azure Subscription:", 
@@ -97,7 +100,7 @@ def interactive_main():
     | project id, name, type, resourceGroup 
     | order by name asc
     """
-    res = run_az(f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id} --subscription {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
+    res = run_az(f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
     
     if not res:
         console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
@@ -107,6 +110,9 @@ def interactive_main():
     if not data:
         console.print("[bold yellow]No workloads (Web Apps / AKS / Container Apps) found in this subscription.[/bold yellow]")
         return 0
+        
+    if len(data) == 1000:
+        console.print("[bold yellow]Warning: Query truncated to 1000 resources. Some workloads might be missing.[/bold yellow]")
         
     # 2.5 Select Resource Group (Cascading)
     unique_rgs = sorted(list(set(r['resourceGroup'] for r in data)))

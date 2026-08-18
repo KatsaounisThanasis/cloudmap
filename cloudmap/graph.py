@@ -8,6 +8,8 @@ VNet, Key Vault, Storage) from bridging the seed to unrelated apps: reaching a
 shared plan downstream never walks back up to the other apps hosted on it.
 """
 
+from typing import Any, Optional
+
 from .extract.extractors import extract_edges
 from .model import Graph, Node
 
@@ -130,7 +132,7 @@ def collapse_high_level(graph, seed_id):
     return Graph(nodes=new_nodes, edges=list(merged.values()), distances=distances)
 
 
-def node_from_id(rid, external=False, note=""):
+def node_from_id(rid: str, external: bool = False, note: str = "") -> Node:
     """Build a Node from a bare ARM id (name = last segment, type from provider),
     for targets referenced but not present in the scanned resource set."""
     typ = ""
@@ -143,7 +145,7 @@ def node_from_id(rid, external=False, note=""):
                 external=external, note=note)
 
 
-def build_graph(resources):
+def build_graph(resources: list[dict[str, Any]]) -> Graph:
     nodes = {}
     for r in resources:
         rid = r.get("id")
@@ -163,7 +165,7 @@ def build_graph(resources):
     return Graph(nodes=nodes, edges=extract_edges(nodes))
 
 
-def find_seeds(graph, name):
+def find_seeds(graph: Graph, name: str) -> list[str]:
     name_l = name.lower()
     exact = [n.id for n in graph.nodes.values() if n.name.lower() == name_l or n.id.lower() == name_l]
     if exact:
@@ -172,18 +174,19 @@ def find_seeds(graph, name):
             if name_l in n.name.lower() or n.id.lower().endswith("/" + name_l)]
 
 
-def blast_radius(graph, seed_id, direction="both", max_hops=None):
+def blast_radius(graph: Graph, seed_id: str, direction: str = "both", max_hops: Optional[int] = None) -> Graph:
     down, up = {}, {}
     for e in graph.edges:
         down.setdefault(e.source, []).append(e.target)
         up.setdefault(e.target, []).append(e.source)
 
+    from collections import deque
     seed_dirs = {"both": ("down", "up"), "down": ("down",), "up": ("up",)}[direction]
 
     visited = {seed_id: 0}
-    queue = [(seed_id, 0, "seed")]       # (node, distance, direction it was reached by)
+    queue = deque([(seed_id, 0, "seed")])       # (node, distance, direction it was reached by)
     while queue:
-        cur, dist, arrived = queue.pop(0)
+        cur, dist, arrived = queue.popleft()
         if max_hops is not None and dist >= max_hops:
             continue
         dirs = seed_dirs if arrived == "seed" else (arrived,)   # never reverse direction

@@ -3,6 +3,7 @@ and every renderer reads. Deliberately provider-neutral so a future GCP/AWS
 ingestor could reuse it unchanged."""
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -14,8 +15,8 @@ class Node:
     subscription: str = ""
     location: str = ""
     kind: str = ""
-    tags: dict = field(default_factory=dict)
-    raw: dict = field(default_factory=dict)   # original resource (properties, identity)
+    tags: dict[str, str] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)   # original resource (properties, identity)
     external: bool = False   # referenced but not verified as an ARM resource in scope
     note: str = ""           # how it was discovered / why it's external
 
@@ -33,10 +34,10 @@ class Edge:
 
 @dataclass
 class Graph:
-    nodes: dict             # id -> Node
-    edges: list             # list[Edge]
-    distances: dict = field(default_factory=dict)   # id -> hop distance from seed
+    nodes: dict[str, Node]             # id -> Node
+    edges: list[Edge]                  # list[Edge]
+    distances: dict[str, int] = field(default_factory=dict)   # id -> hop distance from seed
     # provenance of the map ITSELF (seed, complete, truncated, read_gaps) as written
     # to the JSON artifact. Carried so a reloaded map stays honest about its limits:
     # a question answered from an incomplete map gets the same warning the map has.
-    meta: dict = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)

@@ -37,10 +37,9 @@ def _az(args):
     # If the user pinned a specific subscription (e.g. cross-tenant QA sub),
     # force the CLI to use that context for every command to avoid "Given: ''" errors.
     pin = os.environ.get("CLOUDMAP_ALLOW_SUBSCRIPTION", "").strip()
-    if pin and "--subscription" not in cmd:
+    if pin and "--subscription" not in cmd and not (args[0] == "account" and len(args) > 1 and args[1] == "list"):
         # az account list does not accept --subscription
-        if not (args[0] == "account" and len(args) > 1 and args[1] == "list"):
-            cmd += ["--subscription", pin]
+        cmd += ["--subscription", pin]
             
     out = subprocess.run(cmd, capture_output=True, text=True)
     if out.returncode != 0:

@@ -147,7 +147,12 @@ def _cmd_trace(args):
 
     meta = {"truncated": truncated, "read_gaps": read_gaps, "blind_spots": blind_spots}
 
-    out = args.out or f"{graph.nodes[seed].name}.blast.drawio"
+    _export_outputs(sub, seed, args, meta)
+    return 0
+
+
+def _export_outputs(sub, seed, args, meta):
+    out = args.out or f"{sub.nodes[seed].name}.blast.drawio"
     _ensure_parent(out)
     with open(out, "w", encoding="utf-8") as f:
         f.write(to_drawio(sub, seed))
@@ -164,8 +169,7 @@ def _cmd_trace(args):
         with open(args.html_out, "w", encoding="utf-8") as f:
             f.write(to_html(sub, seed, meta=meta))
 
-    _print_summary(sub, seed, out, truncated=truncated, blind_spots=blind_spots)
-    return 0
+    _print_summary(sub, seed, out, truncated=meta.get("truncated", False), blind_spots=meta.get("blind_spots", []))
 
 
 _WEBAPP = "microsoft.web/sites"
@@ -277,7 +281,7 @@ def _cmd_capture(args):
     export can contradict us, which is the only way a test earns trust. Scrubbed
     by default, because the interesting half of a capture is app config and app
     config is full of credentials."""
-    from .ingest.azure import enrich_webapps, query_live
+    from .ingest.azure import enrich_aks_clusters, enrich_webapps, query_live
 
     resources, truncated = query_live(allow_live=args.allow_live,
                                       tenant_wide=not args.single_sub)

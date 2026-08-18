@@ -8,7 +8,7 @@ image). Entries marked (best-effort) may need a filename tweak if the icon
 renders broken in your draw.io build.
 """
 
-from xml.sax.saxutils import escape, quoteattr
+from xml.sax.saxutils import quoteattr
 
 # Verified against jgraph/drawio src/main/webapp/img/lib/azure2/ (folder + filename).
 AZURE_ICON = {
