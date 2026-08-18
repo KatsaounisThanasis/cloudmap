@@ -95,6 +95,12 @@ circular). It comes from three things:
 - [x] An answer inherits the map's own caveats - `meta.complete: false`, read gaps
       and truncation are repeated on every answer drawn from that artifact.
 
+### Phase 2.5 - UX & Core Stability  ← DONE
+- [x] Interactive CLI Wizard (`interactive.py`): Zero-config start with cascading resource group menus and graceful Azure CLI error handling.
+- [x] Azure Resource Graph (ARG) Query enhancements: Subscription pinning, 1000-resource pagination warnings, and cross-tenant resolution.
+- [x] Enterprise-grade Python strict type hinting across core files (`model.py`, `graph.py`).
+- [x] Extensive test coverage (185+ passing tests) securing the interactive UI and ARG extraction layers.
+
 ### Phase 3 - Extend
 - [ ] Coverage: model proposes edges for resource types with no hand-written rule;
       verifier checks; results marked as model-derived.
