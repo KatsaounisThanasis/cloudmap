@@ -50,6 +50,20 @@ click a resource to focus its blast radius:
 - **Impact analysis, onboarding, change reviews.** "What breaks if I touch this?"
   in one diagram instead of ten portal blades.
 
+## Real-World Scenarios (Why you need this)
+
+### 1. The "Safe to Delete?" Scenario (FinOps / Cloud Cost Cleanup)
+A developer spots an expensive Azure SQL Database (`sql-orders-dev`) that looks orphaned in the portal. They want to delete it to save $500/month. 
+By running `cloudmap trace sql-orders-dev --direction up`, the tool deep-enriches the connection strings of all Web Apps in the subscription. The map instantly reveals that a *production* Web App is mistakenly pointing to this dev database! The engineer just avoided a catastrophic outage.
+
+### 2. The "Incident Response / Root Cause" Scenario (SRE)
+At 3:00 AM, alerts fire because `payment-api` (an AKS cluster) is failing. The team is blind.
+Running the CloudMap interactive wizard on `payment-api` generates an HTML dependency graph in 5 seconds. It shows the cluster depends on a Key Vault (`kv-pay`). Checking the vault reveals someone changed its firewall rules 10 minutes ago. Cloudmap provides the exact *Evidence* ("found in Kubernetes secret X"), identifying the root cause instantly.
+
+### 3. The "Compliance & Auditor Review" Scenario (Security)
+An auditor asks: *"Which systems have access to the Storage Account containing PII customer data?"*
+Instead of manually clicking through 50 IAM screens in the Azure Portal, you run `cloudmap trace pii-storage --direction up --csv pii-audit.csv`. In seconds, you hand the auditor a clean spreadsheet showing exactly which Web Apps and AKS clusters have Managed Identity RBAC access to the storage, complete with the exact Role Assignments as proof.
+
 ## How it works
 
 1. **Ingest** - a JSON fixture (default) or live `az graph query` (opt-in, guarded).
