@@ -57,6 +57,7 @@ def main(argv=None):
     t.add_argument("--json", dest="json_out", default=None, help="also write the graph JSON")
     t.add_argument("--html", dest="html_out", default=None,
                    help="also write a self-contained interactive HTML viewer (open in a browser)")
+    t.add_argument("--csv", dest="csv_out", default=None, help="also write the graph as CSV")
 
     c = sub.add_parser("capture", help="save a raw live export so it can become a fixture")
     c.add_argument("-o", "--out", required=True, help="where to write the export")
@@ -168,6 +169,11 @@ def _export_outputs(sub, seed, args, meta):
         _ensure_parent(args.html_out)
         with open(args.html_out, "w", encoding="utf-8") as f:
             f.write(to_html(sub, seed, meta=meta))
+    if args.csv_out:
+        _ensure_parent(args.csv_out)
+        from .render.csv_export import to_csv
+        with open(args.csv_out, "w", encoding="utf-8") as f:
+            f.write(to_csv(sub, seed, meta=meta))
 
     _print_summary(sub, seed, out, truncated=meta.get("truncated", False), blind_spots=meta.get("blind_spots", []))
 

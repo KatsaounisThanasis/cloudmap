@@ -186,6 +186,7 @@ def interactive_main():
     out_drawio = f"{res_name}.drawio"
     out_html = f"{res_name}.html"
     out_mmd = f"{res_name}.mmd"
+    out_csv = f"{res_name}.csv"
     
     args = [
         "trace", res_id,
@@ -194,7 +195,8 @@ def interactive_main():
         "--enrich", enrich,
         "-o", out_drawio,
         "--html", out_html,
-        "--mermaid", out_mmd
+        "--mermaid", out_mmd,
+        "--csv", out_csv
     ]
     
     from .cli import main as cli_main

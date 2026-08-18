@@ -325,6 +325,7 @@ def test_all_three_artifacts_are_named_after_the_resource(wizard):
     assert state.argv[state.argv.index("-o") + 1] == "orders-api.drawio"
     assert state.argv[state.argv.index("--html") + 1] == "orders-api.html"
     assert state.argv[state.argv.index("--mermaid") + 1] == "orders-api.mmd"
+    assert state.argv[state.argv.index("--csv") + 1] == "orders-api.csv"
 
 
 @pytest.mark.parametrize("answers", [
