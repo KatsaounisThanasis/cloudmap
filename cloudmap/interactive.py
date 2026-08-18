@@ -100,19 +100,27 @@ def interactive_main():
     | project id, name, type, resourceGroup 
     | order by name asc
     """
-    res = run_az(f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}", console, "Scanning for Workloads via Azure Resource Graph...")
-    
-    if not res:
-        console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
-        return 1
-        
-    data = res.get("data", [])
+    data = []
+    token = None
+    with console.status("[bold cyan]Scanning for Workloads via Azure Resource Graph...[/bold cyan]", spinner="dots"):
+        for _ in range(40):  # Cap at 40 pages (40,000 resources)
+            cmd = f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}"
+            if token:
+                cmd += f" --skip-token \"{token}\""
+            res = run_az(cmd)
+            
+            if res is None:
+                console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
+                return 1
+                
+            data.extend(res.get("data", []))
+            token = res.get("skip_token") or res.get("skipToken")
+            if not token:
+                break
+                
     if not data:
         console.print("[bold yellow]No workloads (Web Apps / AKS / Container Apps) found in this subscription.[/bold yellow]")
         return 0
-        
-    if len(data) == 1000:
-        console.print("[bold yellow]Warning: Query truncated to 1000 resources. Some workloads might be missing.[/bold yellow]")
         
     # 2.5 Select Resource Group (Cascading)
     unique_rgs = sorted(list(set(r['resourceGroup'] for r in data)))

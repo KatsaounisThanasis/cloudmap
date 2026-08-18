@@ -207,22 +207,31 @@ def test_every_supported_seed_workload_type_is_queried(wizard):
         assert f"'{rtype}'" in graph_cmd
 
 
-def test_a_full_thousand_row_page_warns_that_workloads_may_be_missing(wizard):
-    rows = [_row(f"app{i:04d}") for i in range(1000)]
-    wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": rows[0]["name"]}, "auto"], rows)
+def test_pagination_fetches_multiple_pages_if_skip_token_is_present(wizard, monkeypatch):
+    rows = [_row("app1"), _row("app2")]
+    wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": rows[0]["name"]}, "auto"], [])
+    
+    call_count = 0
+    def paged_run_az(cmd, console=None, loading_msg="Loading..."):
+        nonlocal call_count
+        if "account list" in cmd:
+            return SUBS
+        
+        # Mock ARG query responses
+        call_count += 1
+        if call_count == 1:
+            return {"data": [rows[0]], "skipToken": "TOKEN1"}
+        elif call_count == 2:
+            return {"data": [rows[1]]} # No token, loop should stop
+            
+    monkeypatch.setattr(interactive, "run_az", paged_run_az)
 
     interactive.interactive_main()
 
-    assert FakeConsole.last.said("truncated to 1000")
-
-
-def test_a_page_below_the_limit_does_not_warn(wizard):
-    rows = [_row(f"app{i:04d}") for i in range(999)]
-    wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": rows[0]["name"]}, "auto"], rows)
-
-    interactive.interactive_main()
-
-    assert FakeConsole.last.said("truncated") == []
+    # The wizard should have gathered both rows and presented them
+    offered = [c.value["name"] for c in wizard.prompts.choices_for("resource to trace")]
+    assert offered == ["app1", "app2"]
+    assert call_count == 2
 
 
 def test_a_subscription_with_no_workloads_exits_cleanly(wizard):
