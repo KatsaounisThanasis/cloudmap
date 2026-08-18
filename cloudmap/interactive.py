@@ -95,7 +95,12 @@ def interactive_main():
         'microsoft.compute/virtualmachines',
         'microsoft.apimanagement/service',
         'microsoft.sql/servers/databases',
-        'microsoft.dbforpostgresql/flexibleservers'
+        'microsoft.dbforpostgresql/flexibleservers',
+        'microsoft.storage/storageaccounts',
+        'microsoft.keyvault/vaults',
+        'microsoft.logic/workflows',
+        'microsoft.servicebus/namespaces',
+        'microsoft.eventhub/namespaces'
     ) 
     | project id, name, type, resourceGroup 
     | order by name asc
@@ -123,6 +128,11 @@ def interactive_main():
         return 0
         
     # 2.5 Select Resource Group (Cascading)
+    # Ensure resourceGroup is never None for sorting and filtering
+    for r in data:
+        if not r.get('resourceGroup'):
+            r['resourceGroup'] = 'Unknown'
+            
     unique_rgs = sorted(list(set(r['resourceGroup'] for r in data)))
     rg_choices = [questionary.Choice(title="🌟 [All Resource Groups]", value="ALL")]
     for rg in unique_rgs:

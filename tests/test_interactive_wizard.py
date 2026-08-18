@@ -341,10 +341,6 @@ def test_cancelling_any_prompt_aborts_without_tracing(wizard, answers):
     assert state.argv is None
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: the wizard indexes row['resourceGroup'] directly, "
-                                       "so an ARG row with a null resource group crashes the "
-                                       "resource-group step with TypeError instead of grouping "
-                                       "it under an unknown group")
 def test_a_workload_row_without_a_resource_group_does_not_crash_the_wizard(wizard):
     rows = [_row("a", "rg-a"), dict(_row("b", "rg-b"), resourceGroup=None)]
     state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "a"}, "auto"], rows)
