@@ -131,18 +131,34 @@ def _cmd_trace(args):
     if args.live:
         graph, read_gaps, blind_spots = _enrich_live(args, graph, seed, resources)
 
-    # LLM-assisted extraction (opt-in): local model proposes, Resolver verifies.
+    sub = blast_radius(graph, seed, direction=args.direction, max_hops=args.max_hops)
+
+    # LLM-assisted extraction (Phase 3): local model proposes edges for resources
+    # with no hand-written rules. It runs on the initial deterministic blast radius
+    # to find hidden links, verifies them against the tenant, and re-computes the radius.
     if args.llm:
+        print("Running local model (ollama) on blast radius nodes to propose hidden edges...", file=sys.stderr)
         from .extract.extractors import Resolver, merge_model_edges
         from .extract.llm import llm_edges_for_seed
+        
         resolver = Resolver(graph.nodes)
-        lext, ledges = llm_edges_for_seed(graph.nodes[seed], resolver)
-        for nd in lext:
-            graph.nodes.setdefault(nd.id, nd)
+        ledges = []
+        
+        # We only ask the LLM about nodes we actually care about (the initial radius)
+        # to save massive amounts of inference time.
+        for n_id in list(sub.nodes.keys()):
+            lext, ledges_n = llm_edges_for_seed(graph.nodes[n_id], resolver)
+            for nd in lext:
+                graph.nodes.setdefault(nd.id, nd)
+            ledges.extend(ledges_n)
+            
         # model edges may only add new targets, never override deterministic ones
         graph.edges = merge_model_edges(graph.edges, ledges)
+        
+        # Re-compute blast radius now that we have LLM-proposed edges
+        sub = blast_radius(graph, seed, direction=args.direction, max_hops=args.max_hops)
 
-    sub = blast_radius(graph, seed, direction=args.direction, max_hops=args.max_hops)
+
     if args.level == "high":
         sub = collapse_high_level(sub, seed)
 
