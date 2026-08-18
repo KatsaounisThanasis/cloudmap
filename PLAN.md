@@ -101,8 +101,8 @@ circular). It comes from three things:
 - [x] Enterprise-grade Python strict type hinting across core files (`model.py`, `graph.py`).
 - [x] Extensive test coverage (185+ passing tests) securing the interactive UI and ARG extraction layers.
 
-### Phase 3 - Extend
-- [ ] Coverage: model proposes edges for resource types with no hand-written rule;
+### Phase 3 - Extend  ← DONE
+- [x] Coverage: model proposes edges for resource types with no hand-written rule;
       verifier checks; results marked as model-derived.
 - [ ] Second adapter (Terraform state, then a second cloud) when there is a real need.
 
