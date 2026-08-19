@@ -127,7 +127,7 @@ def query_live(allow_live=False, tenant_wide=True):
                 roles.extend(rol)
                 trunc_r = trunc_r or tr
                 trunc_a = trunc_a or ta
-            except Exception as e:
+            except Exception:
                 print(f"  ! skipped subscription {s} (access denied or error)", file=sys.stderr)
 
     print(f"Scanned {len(resources)} resources + {len(roles)} role assignments "

@@ -555,7 +555,6 @@ def _aks_config_edges(n, p, r, add):
     k8s_text = n.raw.get("kubernetes_text") or ""
     
     values = []
-    import base64
     
     for line in k8s_text.splitlines():
         line = line.strip()

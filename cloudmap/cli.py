@@ -254,7 +254,7 @@ def _enrich_live(args, graph, seed, resources):
     """Deep-enrich workloads, re-extract, and name what stayed invisible.
     Returns (graph, read_gaps, blind_spots) - `resources` is extended in place."""
     from .extract.extractors import Resolver, _dedupe, seed_external_dependencies
-    from .ingest.azure import enrich_webapps, enrich_aks_clusters
+    from .ingest.azure import enrich_aks_clusters, enrich_webapps
 
     targets, skipped = _enrichment_targets(graph, seed, args.enrich, args.direction)
     read_gaps, blind_spots = [], []

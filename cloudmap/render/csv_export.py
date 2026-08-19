@@ -1,6 +1,7 @@
 import csv
 import io
 
+
 def to_csv(graph, seed_id, meta=None):
     """Render the graph as a flat CSV for auditing and spreadsheet analysis."""
     output = io.StringIO()

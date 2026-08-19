@@ -1,7 +1,6 @@
+import json
 import os
 import sys
-import json
-import subprocess
 
 try:
     import questionary
@@ -39,7 +38,7 @@ def interactive_main():
     ))
     
     # 1. Get subscriptions (Optimized query: only enabled, minimal fields)
-    with console.status(f"[bold cyan]Fetching Azure Subscriptions...[/bold cyan]", spinner="dots"):
+    with console.status("[bold cyan]Fetching Azure Subscriptions...[/bold cyan]", spinner="dots"):
         try:
             subs_json = _az(["account", "list", "--query", "[?state=='Enabled'].{name:name, id:id, isDefault:isDefault, tenantId:tenantId}", "-o", "json"])
             subs = json.loads(subs_json)
@@ -73,7 +72,6 @@ def interactive_main():
     tenant_id = str(chosen_sub.get("tenantId", "")).strip()
     
     # Globally pin the subscription so _graph_paged and _az use it correctly across tenants
-    import os
     os.environ["CLOUDMAP_ALLOW_SUBSCRIPTION"] = sub_id
     
     # 2. Get resources (Optimized ARG query)
