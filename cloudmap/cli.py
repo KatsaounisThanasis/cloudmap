@@ -139,20 +139,30 @@ def _cmd_trace(args):
     # with no hand-written rules. It runs on the initial deterministic blast radius
     # to find hidden links, verifies them against the tenant, and re-computes the radius.
     if args.llm:
-        print("Running local model (ollama) on blast radius nodes to propose hidden edges...", file=sys.stderr)
+        from rich.console import Console
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+        console = Console(stderr=True)
+        console.print("[bold yellow]Running local model (ollama) on blast radius nodes to propose hidden edges...[/bold yellow]")
         from .extract.extractors import Resolver, merge_model_edges
         from .extract.llm import llm_edges_for_seed
         
         resolver = Resolver(graph.nodes)
         ledges = []
         
-        # We only ask the LLM about nodes we actually care about (the initial radius)
-        # to save massive amounts of inference time.
-        for n_id in list(sub.nodes.keys()):
-            lext, ledges_n = llm_edges_for_seed(graph.nodes[n_id], resolver)
-            for nd in lext:
-                graph.nodes.setdefault(nd.id, nd)
-            ledges.extend(ledges_n)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task(f"Asking AI about {len(sub.nodes)} resources...", total=len(sub.nodes))
+            for n_id in list(sub.nodes.keys()):
+                node_name = graph.nodes[n_id].name
+                progress.update(task, description=f"AI analyzing: [cyan]{node_name}[/cyan] ({graph.nodes[n_id].type})")
+                lext, ledges_n = llm_edges_for_seed(graph.nodes[n_id], resolver)
+                for nd in lext:
+                    graph.nodes.setdefault(nd.id, nd)
+                ledges.extend(ledges_n)
+                progress.advance(task)
             
         # model edges may only add new targets, never override deterministic ones
         graph.edges = merge_model_edges(graph.edges, ledges)

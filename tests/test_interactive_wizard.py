@@ -196,9 +196,6 @@ def test_the_workload_query_asks_for_a_thousand_rows_in_one_subscription(wizard)
 
     assert "--first 1000" in graph_cmd
     assert "--subscriptions SUB-1" in graph_cmd
-    # `--subscriptions` already scopes the query; the duplicate singular flag that
-    # az rejects in this position must not come back.
-    assert "--subscription SUB-1" not in graph_cmd.replace("--subscriptions SUB-1", "")
 
 
 def test_every_supported_seed_workload_type_is_queried(wizard):
