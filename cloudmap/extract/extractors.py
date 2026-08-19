@@ -561,13 +561,8 @@ def _aks_config_edges(n, p, r, add):
             values.append(line[4:])
         elif line.startswith("cm:"):
             values.append(line[3:])
-        elif line.startswith("sec:"):
-            try:
-                # Kubernetes secrets are base64 encoded
-                decoded = base64.b64decode(line[4:]).decode("utf-8", errors="ignore")
-                values.append(decoded)
-            except Exception:
-                pass
+        elif line.startswith("sec_decoded:"):
+            values.append(line[12:])
                     
     _config_edges(n, values, r, add, label="AKS workload config")
 
