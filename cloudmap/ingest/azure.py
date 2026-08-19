@@ -34,14 +34,21 @@ def _az(args):
         # az account list does not accept --subscription
         cmd += ["--subscription", pin]
             
-    out = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"az {' '.join(args)} timed out after 120s")
+        
     if out.returncode != 0:
         raise RuntimeError(f"az {' '.join(args)} failed: {out.stderr.strip()}")
     return out.stdout
 
 
 def _guard():
-    acct = json.loads(_az(["account", "show", "-o", "json"]))
+    try:
+        acct = json.loads(_az(["account", "show", "-o", "json"]))
+    except Exception:
+        raise SystemExit("Azure CLI error: You are not logged in, or no active subscription is set. Run 'az login' first.")
     sub_id = acct.get("id") or ""
     tenant = (acct.get("tenantId") or "").lower()
 
@@ -105,8 +112,23 @@ def query_live(allow_live=False, tenant_wide=True):
     acct = _guard()
     subs = _target_subscriptions(acct.get("id"), tenant_wide)
 
-    resources, trunc_r = _graph_paged(RESOURCES_KQL, subs)
-    roles, trunc_a = _graph_paged(ROLES_KQL, subs)
+    resources, trunc_r = [], False
+    roles, trunc_a = [], False
+    try:
+        resources, trunc_r = _graph_paged(RESOURCES_KQL, subs)
+        roles, trunc_a = _graph_paged(ROLES_KQL, subs)
+    except Exception as bulk_e:
+        print(f"Bulk scan failed ({bulk_e}), falling back to per-subscription scan...", file=sys.stderr)
+        for s in subs:
+            try:
+                res, tr = _graph_paged(RESOURCES_KQL, [s])
+                rol, ta = _graph_paged(ROLES_KQL, [s])
+                resources.extend(res)
+                roles.extend(rol)
+                trunc_r = trunc_r or tr
+                trunc_a = trunc_a or ta
+            except Exception as e:
+                print(f"  ! skipped subscription {s} (access denied or error)", file=sys.stderr)
 
     print(f"Scanned {len(resources)} resources + {len(roles)} role assignments "
           f"across {len(subs)} subscription(s).", file=sys.stderr)
@@ -198,17 +220,21 @@ def enrich_webapp(raw, resolve_secrets=False):
     (DB / Storage connection strings) become visible. Values are never printed
     or written out.
     """
-    name, rg = raw.get("name"), raw.get("resourceGroup")
+    name, rg, sub_id = raw.get("name"), raw.get("resourceGroup"), raw.get("subscriptionId")
     result = {"role_assignments": [], "diagnostics": [], "errors": []}
-    if not (name and rg):
-        result["errors"].append("web app has no name/resourceGroup; skipped deep enrich")
+    if not (name and rg and sub_id):
+        result["errors"].append("web app has no name/resourceGroup/subscriptionId; skipped deep enrich")
         return result
     props = raw.setdefault("properties", {})
     site_cfg = props.setdefault("siteConfig", {})
+    
+    # Helper to ensure we query the exact subscription the resource lives in
+    def __az(cmd_args):
+        return _az(cmd_args + ["--subscription", sub_id])
 
     principal_id = None
     try:
-        show = json.loads(_az(["webapp", "show", "-g", rg, "-n", name, "-o", "json"]))
+        show = json.loads(__az(["webapp", "show", "-g", rg, "-n", name, "-o", "json"]))
         ident = show.get("identity") or {}
         principal_id = ident.get("principalId")
         if principal_id:
@@ -222,7 +248,7 @@ def enrich_webapp(raw, resolve_secrets=False):
         result["errors"].append(f"identity/vnet/runtime (az webapp show): {e}")
 
     try:
-        settings = json.loads(_az(
+        settings = json.loads(__az(
             ["webapp", "config", "appsettings", "list", "-g", rg, "-n", name, "-o", "json"]))
         site_cfg["appSettings"] = [
             {"name": s.get("name"), "value": _maybe_resolve(str(s.get("value", "")), resolve_secrets)}
@@ -232,7 +258,7 @@ def enrich_webapp(raw, resolve_secrets=False):
         result["errors"].append(f"app settings (az webapp config appsettings list): {e}")
 
     try:
-        conns = json.loads(_az(
+        conns = json.loads(__az(
             ["webapp", "config", "connection-string", "list", "-g", rg, "-n", name, "-o", "json"]))
         cs = []
         items = conns.items() if isinstance(conns, dict) else [(v.get("name"), v) for v in conns]
@@ -245,7 +271,7 @@ def enrich_webapp(raw, resolve_secrets=False):
 
     if principal_id:
         try:
-            rows = json.loads(_az(
+            rows = json.loads(__az(
                 ["role", "assignment", "list", "--assignee", principal_id, "--all", "-o", "json"]))
             for i, r in enumerate(rows):
                 result["role_assignments"].append({
@@ -264,7 +290,7 @@ def enrich_webapp(raw, resolve_secrets=False):
 
     if raw.get("id"):
         try:
-            diag = json.loads(_az(
+            diag = json.loads(__az(
                 ["monitor", "diagnostic-settings", "list", "--resource", raw["id"], "-o", "json"]))
             rows = diag.get("value", diag) if isinstance(diag, dict) else diag
             for d in rows or []:
@@ -297,10 +323,10 @@ def enrich_aks_clusters(raws, resolve_secrets=False, max_workers=4):
 
 def enrich_aks(raw, resolve_secrets=False):
     """Deep-enrich an AKS cluster by reading its Kubernetes manifests via az aks command invoke."""
-    name, rg = raw.get("name"), raw.get("resourceGroup")
+    name, rg, sub_id = raw.get("name"), raw.get("resourceGroup"), raw.get("subscriptionId")
     result = {"errors": []}
-    if not (name and rg):
-        result["errors"].append("aks has no name/resourceGroup; skipped deep enrich")
+    if not (name and rg and sub_id):
+        result["errors"].append("aks has no name/resourceGroup/subscriptionId; skipped deep enrich")
         return result
         
     try:
@@ -316,7 +342,8 @@ def enrich_aks(raw, resolve_secrets=False):
         cmd = [
             "aks", "command", "invoke", "-g", rg, "-n", name, 
             "-c", kubectl_cmd,
-            "-o", "json"
+            "-o", "json",
+            "--subscription", sub_id
         ]
         out = json.loads(_az(cmd))
         if str(out.get("exitCode", "")) == "0" or out.get("exitCode") == 0:

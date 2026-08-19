@@ -11,32 +11,12 @@ try:
 except ImportError:
     questionary = None
 
-def run_az(cmd, console=None, loading_msg="Loading..."):
-    """Run an az command, optionally with a rich loading spinner."""
-    def _exec():
-        try:
-            res = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
-            return json.loads(res.stdout) if res.stdout.strip() else None
-        except FileNotFoundError:
-            if console:
-                console.print("[bold red]Error:[/bold red] Azure CLI ('az') is not installed or not in PATH.")
-            return None
-        except subprocess.CalledProcessError as e:
-            if console:
-                console.print(f"[bold red]Azure CLI Error:[/bold red] {e.stderr}")
-            return None
-        except json.JSONDecodeError:
-            return None
-
-    if console and loading_msg:
-        with console.status(f"[bold cyan]{loading_msg}[/bold cyan]", spinner="dots"):
-            return _exec()
-    return _exec()
-
 def interactive_main():
     if questionary is None:
         print("Interactive mode requires 'questionary' and 'rich'. Install with: pip install questionary rich", file=sys.stderr)
         return 1
+
+    from .ingest.azure import _az, _graph_paged
 
     console = Console()
     
@@ -59,7 +39,14 @@ def interactive_main():
     ))
     
     # 1. Get subscriptions (Optimized query: only enabled, minimal fields)
-    subs = run_az("az account list --query \"[?state=='Enabled'].{name:name, id:id, isDefault:isDefault, tenantId:tenantId}\" -o json", console, "Fetching Azure Subscriptions...")
+    with console.status(f"[bold cyan]Fetching Azure Subscriptions...[/bold cyan]", spinner="dots"):
+        try:
+            subs_json = _az(["account", "list", "--query", "[?state=='Enabled'].{name:name, id:id, isDefault:isDefault, tenantId:tenantId}", "-o", "json"])
+            subs = json.loads(subs_json)
+        except Exception as e:
+            console.print(f"[bold red]Error:[/bold red] Azure CLI ('az') failed: {e}")
+            return 1
+            
     if not subs:
         console.print("[bold red]No active subscriptions found. Are you logged in? Run 'az login'.[/bold red]")
         return 1
@@ -84,6 +71,10 @@ def interactive_main():
     
     sub_id = str(chosen_sub["id"]).strip()
     tenant_id = str(chosen_sub.get("tenantId", "")).strip()
+    
+    # Globally pin the subscription so _graph_paged and _az use it correctly across tenants
+    import os
+    os.environ["CLOUDMAP_ALLOW_SUBSCRIPTION"] = sub_id
     
     # 2. Get resources (Optimized ARG query)
     query = """
@@ -111,25 +102,13 @@ def interactive_main():
     | order by name asc
     """
     query = query.replace('\n', ' ').strip()
-    data = []
-    token = None
+    
     with console.status("[bold cyan]Scanning for Workloads via Azure Resource Graph...[/bold cyan]", spinner="dots"):
-        for _ in range(40):  # Cap at 40 pages (40,000 resources)
-            cmd = f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}"
-            if tenant_id and tenant_id != "None":
-                cmd += f" --subscription {sub_id}"
-            if token:
-                cmd += f" --skip-token \"{token}\""
-            res = run_az(cmd, console, loading_msg=None)
-            
-            if res is None:
-                console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
-                return 1
-                
-            data.extend(res.get("data", []))
-            token = res.get("skip_token") or res.get("skipToken")
-            if not token:
-                break
+        try:
+            data, _ = _graph_paged(query, [sub_id])
+        except Exception as e:
+            console.print(f"[bold red]Failed to fetch resources from ARG: {e}[/bold red]")
+            return 1
                 
     if not data:
         console.print("[bold yellow]No workloads (Web Apps / AKS / Container Apps) found in this subscription.[/bold yellow]")
