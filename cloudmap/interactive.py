@@ -105,6 +105,7 @@ def interactive_main():
     | project id, name, type, resourceGroup 
     | order by name asc
     """
+    query = query.replace('\n', ' ').strip()
     data = []
     token = None
     with console.status("[bold cyan]Scanning for Workloads via Azure Resource Graph...[/bold cyan]", spinner="dots"):
@@ -112,7 +113,7 @@ def interactive_main():
             cmd = f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}"
             if token:
                 cmd += f" --skip-token \"{token}\""
-            res = run_az(cmd)
+            res = run_az(cmd, console)
             
             if res is None:
                 console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
