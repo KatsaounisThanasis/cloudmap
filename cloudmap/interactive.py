@@ -100,7 +100,12 @@ def interactive_main():
         'microsoft.keyvault/vaults',
         'microsoft.logic/workflows',
         'microsoft.servicebus/namespaces',
-        'microsoft.eventhub/namespaces'
+        'microsoft.eventhub/namespaces',
+        'microsoft.cognitiveservices/accounts',
+        'microsoft.machinelearningservices/workspaces',
+        'microsoft.search/searchservices',
+        'microsoft.documentdb/databaseaccounts',
+        'microsoft.cache/redis'
     ) 
     | project id, name, type, resourceGroup 
     | order by name asc
