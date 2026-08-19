@@ -112,7 +112,7 @@ def interactive_main():
         for _ in range(40):  # Cap at 40 pages (40,000 resources)
             cmd = f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}"
             if tenant_id and tenant_id != "None":
-                cmd += f" --tenant {tenant_id}"
+                cmd += f" --subscription {sub_id}"
             if token:
                 cmd += f" --skip-token \"{token}\""
             res = run_az(cmd, console, loading_msg=None)
