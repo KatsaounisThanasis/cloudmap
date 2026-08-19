@@ -188,6 +188,16 @@ def interactive_main():
     if not enrich:
         return 0
         
+    # 3.2 AI Edge Proposals (Phase 3)
+    use_llm = questionary.confirm(
+        "Use local AI (Ollama) to discover hidden dependencies? (Slower, but finds undocumented links)",
+        default=False,
+        style=custom_style
+    ).ask()
+    
+    if use_llm is None:  # User aborted with Ctrl+C
+        return 0
+        
     # 3.5 Output Location
     out_location = questionary.select(
         "Where should we save the results folder?",
@@ -225,6 +235,8 @@ def interactive_main():
         "--enrich", enrich,
         "--out-dir", out_location
     ]
-    
+    if use_llm:
+        args.append("--llm")
+        
     from .cli import main as cli_main
     return cli_main(args)
