@@ -113,7 +113,7 @@ def interactive_main():
             cmd = f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}"
             if token:
                 cmd += f" --skip-token \"{token}\""
-            res = run_az(cmd, console)
+            res = run_az(cmd, console, loading_msg=None)
             
             if res is None:
                 console.print("[bold red]Failed to fetch resources from ARG.[/bold red]")
