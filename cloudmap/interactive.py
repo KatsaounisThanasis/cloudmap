@@ -188,15 +188,40 @@ def interactive_main():
     if not enrich:
         return 0
         
+    # 3.5 Output Location
+    out_location = questionary.select(
+        "Where should we save the results folder?",
+        choices=[
+            questionary.Choice(title="📂 Current directory (./)", value="."),
+            questionary.Choice(title="📁 Custom path...", value="CUSTOM")
+        ],
+        style=custom_style
+    ).ask()
+
+    if not out_location:
+        return 0
+
+    if out_location == "CUSTOM":
+        out_location = questionary.path(
+            "Enter output directory path:", 
+            default="./", 
+            only_directories=True,
+            style=custom_style
+        ).ask()
+        if not out_location:
+            return 0
+
+    target_dir = os.path.join(out_location, res_name)
+
     # 4. Generate trace
     console.print(f"\n[bold green]🚀 Launching Trace for [white]{res_name}[/white]...[/bold green]\n")
     
     os.environ["CLOUDMAP_ALLOW_SUBSCRIPTION"] = sub_id
     
-    out_drawio = f"{res_name}.drawio"
-    out_html = f"{res_name}.html"
-    out_mmd = f"{res_name}.mmd"
-    out_csv = f"{res_name}.csv"
+    out_drawio = os.path.join(target_dir, f"{res_name}.drawio")
+    out_html = os.path.join(target_dir, f"{res_name}.html")
+    out_mmd = os.path.join(target_dir, f"{res_name}.mmd")
+    out_csv = os.path.join(target_dir, f"{res_name}.csv")
     
     args = [
         "trace", res_id,

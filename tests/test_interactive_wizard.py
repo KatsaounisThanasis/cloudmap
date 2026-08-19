@@ -161,7 +161,7 @@ def test_json_output_is_returned_parsed(monkeypatch):
 # --- subscription step ----------------------------------------------------------
 
 def test_the_default_subscription_is_labelled_and_offered_first(wizard):
-    state = wizard.install(["SUB-2", "ALL", {"id": _row("a")["id"], "name": "a"}, "auto"],
+    state = wizard.install(["SUB-2", "ALL", {"id": _row("a")["id"], "name": "a"}, "auto", "."],
                            [_row("a")])
 
     interactive.interactive_main()
@@ -183,7 +183,7 @@ def test_no_subscriptions_tells_the_user_to_log_in(wizard, monkeypatch):
 # --- workload query -------------------------------------------------------------
 
 def test_the_workload_query_asks_for_a_thousand_rows_in_one_subscription(wizard):
-    state = wizard.install(["SUB-1", "ALL", {"id": _row("a")["id"], "name": "a"}, "auto"],
+    state = wizard.install(["SUB-1", "ALL", {"id": _row("a")["id"], "name": "a"}, "auto", "."],
                            [_row("a")])
 
     interactive.interactive_main()
@@ -197,7 +197,7 @@ def test_the_workload_query_asks_for_a_thousand_rows_in_one_subscription(wizard)
 
 
 def test_every_supported_seed_workload_type_is_queried(wizard):
-    state = wizard.install(["SUB-1", "ALL", {"id": _row("a")["id"], "name": "a"}, "auto"],
+    state = wizard.install(["SUB-1", "ALL", {"id": _row("a")["id"], "name": "a"}, "auto", "."],
                            [_row("a")])
 
     interactive.interactive_main()
@@ -209,7 +209,7 @@ def test_every_supported_seed_workload_type_is_queried(wizard):
 
 def test_pagination_fetches_multiple_pages_if_skip_token_is_present(wizard, monkeypatch):
     rows = [_row("app1"), _row("app2")]
-    wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": rows[0]["name"]}, "auto"], [])
+    wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": rows[0]["name"]}, "auto", "."], [])
     
     call_count = 0
     def paged_run_az(cmd, console=None, loading_msg="Loading..."):
@@ -255,7 +255,7 @@ def test_a_failed_workload_query_exits_non_zero(wizard, monkeypatch):
 
 def test_resource_groups_are_offered_once_each_with_an_all_option(wizard):
     rows = [_row("a", "rg-b"), _row("b", "rg-a"), _row("c", "rg-a")]
-    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "a"}, "auto"], rows)
+    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "a"}, "auto", "."], rows)
 
     interactive.interactive_main()
     values = [c.value for c in state.prompts.choices_for("resource group")]
@@ -265,7 +265,7 @@ def test_resource_groups_are_offered_once_each_with_an_all_option(wizard):
 
 def test_choosing_a_resource_group_narrows_the_workload_list(wizard):
     rows = [_row("a", "rg-a"), _row("b", "rg-b")]
-    state = wizard.install(["SUB-1", "rg-b", {"id": rows[1]["id"], "name": "b"}, "auto"], rows)
+    state = wizard.install(["SUB-1", "rg-b", {"id": rows[1]["id"], "name": "b"}, "auto", "."], rows)
 
     interactive.interactive_main()
     offered = [c.value["name"] for c in state.prompts.choices_for("resource to trace")]
@@ -275,7 +275,7 @@ def test_choosing_a_resource_group_narrows_the_workload_list(wizard):
 
 def test_a_resource_choice_carries_both_its_id_and_its_name(wizard):
     rows = [_row("a")]
-    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "a"}, "auto"], rows)
+    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "a"}, "auto", "."], rows)
 
     interactive.interactive_main()
     choice = state.prompts.choices_for("resource to trace")[0]
@@ -286,7 +286,7 @@ def test_a_resource_choice_carries_both_its_id_and_its_name(wizard):
 def test_the_trace_is_seeded_with_the_exact_arm_id_not_the_name(wizard):
     # Two workloads share the name; only the id can identify the one picked.
     rows = [_row("app", "rg-a"), _row("app", "rg-b")]
-    state = wizard.install(["SUB-1", "ALL", {"id": rows[1]["id"], "name": "app"}, "auto"], rows)
+    state = wizard.install(["SUB-1", "ALL", {"id": rows[1]["id"], "name": "app"}, "auto", "."], rows)
 
     assert interactive.interactive_main() == 0
     assert state.argv[:2] == ["trace", rows[1]["id"]]
@@ -294,7 +294,7 @@ def test_the_trace_is_seeded_with_the_exact_arm_id_not_the_name(wizard):
 
 def test_the_trace_runs_live_against_only_the_chosen_subscription(wizard, monkeypatch):
     rows = [_row("app")]
-    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "app"}, "all"], rows)
+    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "app"}, "all", "."], rows)
 
     interactive.interactive_main()
 
@@ -307,7 +307,7 @@ def test_the_chosen_subscription_is_pinned_for_the_trace(wizard, monkeypatch):
     import os
 
     rows = [_row("app")]
-    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "app"}, "auto"], rows)
+    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "app"}, "auto", "."], rows)
 
     interactive.interactive_main()
 
@@ -317,15 +317,15 @@ def test_the_chosen_subscription_is_pinned_for_the_trace(wizard, monkeypatch):
 
 def test_all_three_artifacts_are_named_after_the_resource(wizard):
     rows = [_row("orders-api")]
-    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "orders-api"}, "auto"],
+    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "orders-api"}, "auto", "."],
                            rows)
 
     interactive.interactive_main()
 
-    assert state.argv[state.argv.index("-o") + 1] == "orders-api.drawio"
-    assert state.argv[state.argv.index("--html") + 1] == "orders-api.html"
-    assert state.argv[state.argv.index("--mermaid") + 1] == "orders-api.mmd"
-    assert state.argv[state.argv.index("--csv") + 1] == "orders-api.csv"
+    assert state.argv[state.argv.index("-o") + 1] == "./orders-api/orders-api.drawio"
+    assert state.argv[state.argv.index("--html") + 1] == "./orders-api/orders-api.html"
+    assert state.argv[state.argv.index("--mermaid") + 1] == "./orders-api/orders-api.mmd"
+    assert state.argv[state.argv.index("--csv") + 1] == "./orders-api/orders-api.csv"
 
 
 @pytest.mark.parametrize("answers", [
@@ -343,7 +343,7 @@ def test_cancelling_any_prompt_aborts_without_tracing(wizard, answers):
 
 def test_a_workload_row_without_a_resource_group_does_not_crash_the_wizard(wizard):
     rows = [_row("a", "rg-a"), dict(_row("b", "rg-b"), resourceGroup=None)]
-    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "a"}, "auto"], rows)
+    state = wizard.install(["SUB-1", "ALL", {"id": rows[0]["id"], "name": "a"}, "auto", "."], rows)
 
     assert interactive.interactive_main() == 0
     assert state.argv[:2] == ["trace", rows[0]["id"]]
