@@ -218,20 +218,12 @@ def interactive_main():
     
     os.environ["CLOUDMAP_ALLOW_SUBSCRIPTION"] = sub_id
     
-    out_drawio = os.path.join(target_dir, f"{res_name}.drawio")
-    out_html = os.path.join(target_dir, f"{res_name}.html")
-    out_mmd = os.path.join(target_dir, f"{res_name}.mmd")
-    out_csv = os.path.join(target_dir, f"{res_name}.csv")
-    
     args = [
         "trace", res_id,
         "--live", "--allow-live",
         "--single-sub",
         "--enrich", enrich,
-        "-o", out_drawio,
-        "--html", out_html,
-        "--mermaid", out_mmd,
-        "--csv", out_csv
+        "--out-dir", out_location
     ]
     
     from .cli import main as cli_main

@@ -58,6 +58,8 @@ def main(argv=None):
     t.add_argument("--html", dest="html_out", default=None,
                    help="also write a self-contained interactive HTML viewer (open in a browser)")
     t.add_argument("--csv", dest="csv_out", default=None, help="also write the graph as CSV")
+    t.add_argument("-d", "--out-dir", dest="out_dir", default=None,
+                   help="write ALL formats into this directory, under a folder named after the resource")
 
     c = sub.add_parser("capture", help="save a raw live export so it can become a fixture")
     c.add_argument("-o", "--out", required=True, help="where to write the export")
@@ -169,7 +171,16 @@ def _cmd_trace(args):
 
 
 def _export_outputs(sub, seed, args, meta):
-    out = args.out or f"{sub.nodes[seed].name}.blast.drawio"
+    name = sub.nodes[seed].name
+    if getattr(args, "out_dir", None):
+        target_dir = os.path.join(args.out_dir, name)
+        args.out = args.out or os.path.join(target_dir, f"{name}.drawio")
+        args.mermaid = args.mermaid or os.path.join(target_dir, f"{name}.mmd")
+        args.json_out = args.json_out or os.path.join(target_dir, f"{name}.json")
+        args.html_out = args.html_out or os.path.join(target_dir, f"{name}.html")
+        args.csv_out = args.csv_out or os.path.join(target_dir, f"{name}.csv")
+
+    out = args.out or f"{name}.blast.drawio"
     _ensure_parent(out)
     with open(out, "w", encoding="utf-8") as f:
         f.write(to_drawio(sub, seed))

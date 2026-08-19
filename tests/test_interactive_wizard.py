@@ -322,10 +322,8 @@ def test_all_three_artifacts_are_named_after_the_resource(wizard):
 
     interactive.interactive_main()
 
-    assert state.argv[state.argv.index("-o") + 1] == "./orders-api/orders-api.drawio"
-    assert state.argv[state.argv.index("--html") + 1] == "./orders-api/orders-api.html"
-    assert state.argv[state.argv.index("--mermaid") + 1] == "./orders-api/orders-api.mmd"
-    assert state.argv[state.argv.index("--csv") + 1] == "./orders-api/orders-api.csv"
+    assert "--out-dir" in state.argv
+    assert state.argv[state.argv.index("--out-dir") + 1] == "."
 
 
 @pytest.mark.parametrize("answers", [
