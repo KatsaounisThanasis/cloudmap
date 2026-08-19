@@ -25,8 +25,8 @@ flowchart TD
     TRACE -->|"--from"| FIX["ingest/fixture.py<br/>load_fixture()"]
     TRACE -->|"--live"| AZ["ingest/azure.py<br/>query_live() :106"]
 
-    AZ --> GUARD["_guard() :50<br/>prod hard-deny + ALLOW_SUB"]
-    AZ --> SUBS["_target_subscriptions() :74<br/>tenant-wide, non-prod"]
+    AZ --> GUARD["_guard() :50<br/>ALLOW_SUB pin"]
+    AZ --> SUBS["_target_subscriptions() :74<br/>tenant-wide"]
     AZ --> PAGE["_graph_paged() :88<br/>type-filtered KQL, skip_token"]
 
     FIX --> BUILD["graph.build_graph() :34"]
@@ -98,8 +98,8 @@ flowchart TD
 
 **Live path** (`--live --allow-live --resolve-secrets`) — additionally in `_cmd_trace`:
 
-9. `query_live()` → `_guard()` (prod hard-deny + `CLOUDMAP_ALLOW_SUBSCRIPTION` ==
-   active sub) → `_target_subscriptions()` (all Enabled non-prod) → `_graph_paged()`
+9. `query_live()` → `_guard()` (`CLOUDMAP_ALLOW_SUBSCRIPTION` ==
+   active sub) → `_target_subscriptions()` (all Enabled) → `_graph_paged()`
    (type-filtered KQL, `skip_token` paging, warns when it hits the cap).
 10. `_enrich_live()` (`cli.py`) picks which web apps to deep-enrich via
     `_enrichment_targets()`, then `enrich_webapps()` runs them concurrently:
@@ -134,8 +134,7 @@ flowchart TD
   unresolved targets (noise at tenant scale), but the seed-scoped pass resurfaces them
   as external — a clean separation of responsibility across the two functions.
 - **Security-by-design in ingest**: `_guard()` (`azure.py:50`) demands an explicit env
-  var equal to the exact active sub id, and `_target_subscriptions` (`:82`) filters out
-  prod. Secrets are resolved in-memory only (`_resolve_secret` :113) and `.gitignore`
+  var equal to the exact active sub id. Secrets are resolved in-memory only (`_resolve_secret` :113) and `.gitignore`
   keeps `live/` out of the repo.
 - **Verified icon paths** (`drawio.py:14`) — image shapes over mxgraph stencils, likely
   because the azure2 SVGs ship inside draw.io (the repo ships no icon assets).

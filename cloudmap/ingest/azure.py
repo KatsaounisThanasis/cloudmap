@@ -1,12 +1,5 @@
 """Live Azure ingest via `az`.
 
-Guarded on purpose:
-  1. Production is hard-blocked by subscription-name hint, always.
-  2. Live mode requires confirming the EXACT active subscription id via the
-     CLOUDMAP_ALLOW_SUBSCRIPTION env var (so it can never run against the wrong
-     context by accident).
-  3. Tenant-wide scans exclude any subscription whose name looks like prod.
-
 Secrets: web-app app settings / Key Vault secret values can contain credentials.
 They are read in-process ONLY to derive dependency endpoints, and are never
 printed and never written to any output file.
