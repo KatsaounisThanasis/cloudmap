@@ -427,7 +427,9 @@ def extract_edges(nodes):
             continue
         for arm_id, path in _iter_arm_ids(n.raw.get("properties") or {}, "properties"):
             tgt = r.by_resource_id(arm_id)
-            if (not tgt or tgt == n.id or (n.id, tgt) in known
+            if "privateendpointconnections" in path.lower() or "privatelinkserviceconnections" in path.lower():
+                continue
+            if (not tgt or tgt == n.id or (n.id, tgt) in known or (tgt, n.id) in known
                     or nodes[tgt].type == "microsoft.authorization/roleassignments"):
                 continue
             # two resources that name each other (a NIC and its VNet) would give a
@@ -457,18 +459,26 @@ def _config_edges(n, values, r, add, label="app config"):
     different field names: free text that happens to name other resources."""
     blob = " ".join(values).lower()
 
-    for host, nid in r.by_host.items():
-        if _bounded_in(host, blob):
-            add(n.id, nid, domain_kind(host)[0], f"{label} references host {host}")
-    for acct, nid in r.storage_by_name.items():
-        if _bounded_in(f"accountname={acct}", blob):
-            add(n.id, nid, "connects-to", f"{label} references accountname={acct}")
+    # O(blob) extraction instead of O(hosts * blob)
+    import re
+    words = set(re.findall(r"[a-z0-9.-]+", blob))
+    
+    for word in words:
+        if word in r.by_host:
+            add(n.id, r.by_host[word], domain_kind(word)[0], f"{label} references host {word}")
+        if word in r.by_ik:
+            add(n.id, r.by_ik[word], "sends-telemetry", f"{label} contains instrumentation key")
+
+    # Storage accounts are often in connection strings: accountname=xyz
+    for m in re.finditer(r"accountname=([a-z0-9]+)", blob):
+        acct = m.group(1)
+        if acct in r.storage_by_name:
+            add(n.id, r.storage_by_name[acct], "connects-to", f"{label} references accountname={acct}")
+
     for vname in _vault_refs(blob):
-        add(n.id, r.kv_by_name.get(vname), "reads-secret",
-            f"Key Vault reference to vault {vname}")
-    for ik, nid in r.by_ik.items():
-        if _bounded_in(ik, blob):
-            add(n.id, nid, "sends-telemetry", f"{label} contains instrumentation key")
+        if vname in r.kv_by_name:
+            add(n.id, r.kv_by_name[vname], "reads-secret",
+                f"Key Vault reference to vault {vname}")
 
 
 def _webapp_config_edges(n, p, r, add):

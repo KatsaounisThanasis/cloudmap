@@ -148,7 +148,7 @@ def node_from_id(rid: str, external: bool = False, note: str = "") -> Node:
 def build_graph(resources: list[dict[str, Any]]) -> Graph:
     nodes = {}
     for r in resources:
-        rid = r.get("id")
+        rid = (r.get("id") or "").lower()
         if not rid:
             continue
         nodes[rid] = Node(
@@ -183,7 +183,8 @@ def blast_radius(graph: Graph, seed_id: str, direction: str = "both", max_hops: 
     from collections import deque
     seed_dirs = {"both": ("down", "up"), "down": ("down",), "up": ("up",)}[direction]
 
-    visited = {seed_id: 0}
+    visited_state = {(seed_id, "seed")}
+    distances = {seed_id: 0}
     queue = deque([(seed_id, 0, "seed")])       # (node, distance, direction it was reached by)
     while queue:
         cur, dist, arrived = queue.popleft()
@@ -196,10 +197,12 @@ def blast_radius(graph: Graph, seed_id: str, direction: str = "both", max_hops: 
         if "up" in dirs:
             step += [(s, "up") for s in up.get(cur, [])]
         for nb, d in step:
-            if nb not in visited and nb in graph.nodes:
-                visited[nb] = dist + 1
+            if (nb, d) not in visited_state and nb in graph.nodes:
+                visited_state.add((nb, d))
+                if nb not in distances or dist + 1 < distances[nb]:
+                    distances[nb] = dist + 1
                 queue.append((nb, dist + 1, d))
 
-    sub_nodes = {nid: graph.nodes[nid] for nid in visited}
-    sub_edges = [e for e in graph.edges if e.source in visited and e.target in visited]
-    return Graph(nodes=sub_nodes, edges=sub_edges, distances=visited)
+    sub_nodes = {nid: graph.nodes[nid] for nid in distances}
+    sub_edges = [e for e in graph.edges if e.source in distances and e.target in distances]
+    return Graph(nodes=sub_nodes, edges=sub_edges, distances=distances)
