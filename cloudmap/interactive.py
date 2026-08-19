@@ -59,7 +59,7 @@ def interactive_main():
     ))
     
     # 1. Get subscriptions (Optimized query: only enabled, minimal fields)
-    subs = run_az("az account list --query \"[?state=='Enabled'].{name:name, id:id, isDefault:isDefault}\" -o json", console, "Fetching Azure Subscriptions...")
+    subs = run_az("az account list --query \"[?state=='Enabled'].{name:name, id:id, isDefault:isDefault, tenantId:tenantId}\" -o json", console, "Fetching Azure Subscriptions...")
     if not subs:
         console.print("[bold red]No active subscriptions found. Are you logged in? Run 'az login'.[/bold red]")
         return 1
@@ -70,7 +70,7 @@ def interactive_main():
     sub_choices = []
     for s in subs:
         default_tag = " [bold green](Default)[/bold green]" if s.get('isDefault') else ""
-        sub_choices.append(questionary.Choice(title=f"{s['name']}{default_tag}  [dim]{s['id']}[/dim]", value=s['id']))
+        sub_choices.append(questionary.Choice(title=f"{s['name']}{default_tag}  [dim]{s['id']}[/dim]", value={"id": s['id'], "tenantId": s.get('tenantId')}))
     
     chosen_sub = questionary.select(
         "Select an Azure Subscription:", 
@@ -82,8 +82,8 @@ def interactive_main():
     if not chosen_sub:
         return 0
     
-    # chosen_sub is already the subscription ID because we passed it in value=
-    sub_id = str(chosen_sub).strip()
+    sub_id = str(chosen_sub["id"]).strip()
+    tenant_id = str(chosen_sub.get("tenantId", "")).strip()
     
     # 2. Get resources (Optimized ARG query)
     query = """
@@ -111,6 +111,8 @@ def interactive_main():
     with console.status("[bold cyan]Scanning for Workloads via Azure Resource Graph...[/bold cyan]", spinner="dots"):
         for _ in range(40):  # Cap at 40 pages (40,000 resources)
             cmd = f"az graph query -q \"{query}\" --first 1000 --subscriptions {sub_id}"
+            if tenant_id and tenant_id != "None":
+                cmd += f" --tenant {tenant_id}"
             if token:
                 cmd += f" --skip-token \"{token}\""
             res = run_az(cmd, console, loading_msg=None)
