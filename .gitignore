@@ -16,3 +16,4 @@ out/
 # never commit anything pulled from a live cloud
 live/
 *.live.json
+.team/
