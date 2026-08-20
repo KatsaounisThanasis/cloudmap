@@ -225,3 +225,32 @@ def test_no_subcommand_is_rejected_rather_than_falling_into_the_wizard():
     # interactive session in a non-interactive context (CI, pipes).
     with pytest.raises(SystemExit):
         cli.main(["--nonsense"])
+
+
+def test_a_truncated_capture_stays_truncated_when_retraced(tmp_path):
+    # The capture said "I did not see everything". Re-tracing that file offline
+    # must not launder the warning into complete:true.
+    capture = tmp_path / "capture.json"
+    capture.write_text(json.dumps({
+        "data": [{"id": "/subscriptions/s/resourceGroups/rg/providers/Microsoft.Web/sites/web",
+                  "name": "web", "type": "microsoft.web/sites", "properties": {}}],
+        "meta": {"truncated": True},
+        "scrubbed": True,
+    }), encoding="utf-8")
+
+    out = tmp_path / "map.json"
+    rc = cli.main(["trace", "web", "--from", str(capture), "--json", str(out)])
+    meta = json.loads(out.read_text())["meta"]
+
+    assert rc == 0
+    assert meta["truncated"] is True
+    assert meta["complete"] is False
+
+
+def test_bare_cloudmap_without_a_terminal_refuses_instead_of_prompting(monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", type("S", (), {"isatty": staticmethod(lambda: False)})())
+
+    rc = cli.main([])
+
+    assert rc == 2
+    assert "terminal" in capsys.readouterr().err

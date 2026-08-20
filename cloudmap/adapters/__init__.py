@@ -88,4 +88,10 @@ def load_graph(path):
         data = json.load(f)
     if _looks_neutral(data):
         return graph_from_neutral(data)
-    return AzureAdapter.to_graph(data)
+    graph = AzureAdapter.to_graph(data)
+    # A capture's own honesty flags (truncated, enriched, scrubbed) ride along:
+    # re-tracing a truncated export must not produce a map that claims to be
+    # complete just because the file was re-read from disk.
+    if isinstance(data, dict) and isinstance(data.get("meta"), dict):
+        graph.meta.update(data["meta"])
+    return graph

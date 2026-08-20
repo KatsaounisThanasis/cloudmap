@@ -164,12 +164,11 @@ def test_a_neutral_graph_json_is_reloaded_without_re_extracting(tmp_path):
     assert graph.meta["seed"] == "/web"          # a reloaded map keeps its provenance
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: a microsoft.sql/servers/databases seed has an "
-                                       "empty blast radius - no child-to-parent edge links a "
-                                       "database to its server, and consumers' connection "
-                                       "strings resolve to the server, so the wizard offers a "
-                                       "seed type that can only ever produce an empty map")
 def test_a_sql_database_seed_reaches_its_server_and_its_consumer():
+    # Regression for a real bug: a database seed used to produce an empty map -
+    # no child-of edge linked it to its server, and consumers' connection strings
+    # resolved only to the server. Fixed by the nested-child pass + landing
+    # config edges on the scanned database itself.
     server = f"{S}/microsoft.sql/servers/sqlsrv"
     database = f"{server}/databases/orders"
     graph = build_graph([

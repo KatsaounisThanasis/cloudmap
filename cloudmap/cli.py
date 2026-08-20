@@ -15,6 +15,14 @@ from .render.mermaid import to_mermaid
 def main(argv=None):
     # Interactive mode if no arguments are provided
     if (argv is None and len(sys.argv) == 1) or (argv is not None and len(argv) == 0):
+        # The wizard hands the terminal to questionary; in a pipe / cron / CI
+        # there is no terminal to hand over, so fail with a pointer instead of
+        # letting the prompt library misbehave against a non-tty stream.
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            print("cloudmap: running with no arguments starts the interactive wizard, "
+                  "which needs a terminal. Use `cloudmap --help` for the scriptable "
+                  "commands.", file=sys.stderr)
+            return 2
         from .interactive import interactive_main
         return interactive_main()
         
@@ -114,8 +122,14 @@ def _cmd_trace(args):
         graph = build_graph(resources)
     else:
         from .adapters import load_graph
-        resources, truncated = [], False
+        resources = []
         graph = load_graph(args.fixture)   # auto-detects raw export vs neutral cloudmap graph
+        # A re-traced capture keeps its own honesty flags: a scan that was
+        # truncated at capture time must not become a map that claims
+        # completeness just because it was re-read from disk.
+        truncated = bool(graph.meta.get("truncated", False))
+        read_gaps = list(graph.meta.get("read_gaps") or [])
+        blind_spots = list(graph.meta.get("blind_spots") or [])
 
     seeds = find_seeds(graph, args.name)
     if not seeds:
@@ -281,6 +295,13 @@ def _enrich_live(args, graph, seed, resources):
             print("Read gaps while enriching (edges below may be INCOMPLETE):", file=sys.stderr)
             for msg in read_gaps:
                 print(f"  ! could not read {msg}", file=sys.stderr)
+            # The artifact is meant to be shared; az stderr carries correlation
+            # ids and GUIDs. The terminal (above) keeps the full text, the map
+            # records a short classified reason.
+            from .ingest.azure import classify_gap
+            read_gaps = [f"{m.partition(': ')[0]}: {classify_gap(m.partition(': ')[2])}"
+                         if ": " in m else classify_gap(m)
+                         for m in read_gaps]
                 
         graph = build_graph(resources)            # re-extract, now that config is present
         resolver = Resolver(graph.nodes)

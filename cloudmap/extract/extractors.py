@@ -183,6 +183,7 @@ class Resolver:
         self.storage_by_name = {}
         self.law_by_customer_id = {}   # Log Analytics workspace GUID -> node_id
         self.by_name = {}          # resource name -> node_id (for verifying LLM proposals)
+        self.sqldb_by_name = {}    # db name -> [(parent server id lower, db node_id)]
         for n in nodes.values():
             self.by_id[n.id.lower()] = n.id
             if n.name:
@@ -213,6 +214,11 @@ class Resolver:
             self.kv_by_name[name] = n.id
         elif t == "microsoft.sql/servers":
             self._add_host(p.get("fullyQualifiedDomainName") or f"{name}.database.windows.net", n.id)
+        elif t == "microsoft.sql/servers/databases":
+            # a connection string names the SERVER as host and the database by
+            # name; keep the pair so config edges can land on the database itself
+            self.sqldb_by_name.setdefault(name, []).append(
+                (n.id.lower().rsplit("/", 2)[0], n.id))
         elif t.startswith("microsoft.dbforpostgresql/"):
             self._add_host(p.get("fullyQualifiedDomainName") or f"{name}.postgres.database.azure.com", n.id)
         elif t.startswith("microsoft.dbformysql/"):
@@ -410,6 +416,19 @@ def extract_edges(nodes):
         elif t == "microsoft.containerservice/managedclusters":
             _aks_config_edges(n, p, r, add)
 
+    # Nested-child pass. An id like .../servers/sqlsrv/databases/orders is a
+    # child resource: it cannot exist without its parent, so a scanned parent
+    # gets a child-of edge. Without this a nested seed (a SQL database, a
+    # Service Bus queue) is an island - no property on either side names the
+    # other, the relationship exists only in the id's shape.
+    for n in nodes.values():
+        if n.type == "microsoft.authorization/roleassignments":
+            continue
+        if len(n.id.split("/")) > 9:                       # provider path + child segments
+            parent = r.by_resource_id(n.id.rsplit("/", 2)[0])
+            if parent and parent != n.id:
+                add(n.id, parent, "child-of", "nested ARM resource id")
+
     # Generic ARM-reference pass. Any resolvable resource id sitting in a
     # resource's properties is a real dependency, whatever the type - this is
     # what lets cloudmap map resource types it has no hand-written rule for,
@@ -462,12 +481,26 @@ def _config_edges(n, values, r, add, label="app config"):
     # O(blob) extraction instead of O(hosts * blob)
     import re
     words = set(re.findall(r"[a-z0-9.-]+", blob))
-    
+
+    hit_hosts = {}                # resolved node id (lower) -> the host that named it
     for word in words:
         if word in r.by_host:
+            hit_hosts[r.by_host[word].lower()] = word
             add(n.id, r.by_host[word], domain_kind(word)[0], f"{label} references host {word}")
         if word in r.by_ik:
             add(n.id, r.by_ik[word], "sends-telemetry", f"{label} contains instrumentation key")
+
+    # A SQL connection string names the server as host and the database by name.
+    # When that database was scanned, land the edge on the database itself (in
+    # addition to the server) - it is what a database seed's upward view needs.
+    # The parent-server check keeps a same-named database under an unreferenced
+    # server from matching.
+    for m in re.finditer(r"(?:database|initial catalog)\s*=\s*([a-z0-9._-]+)", blob):
+        for srv_id, db_id in r.sqldb_by_name.get(m.group(1), []):
+            if srv_id in hit_hosts:
+                add(n.id, db_id, "connects-to",
+                    f"{label} connection string names database {m.group(1)} "
+                    f"on referenced server host {hit_hosts[srv_id]}")
 
     # Storage accounts are often in connection strings: accountname=xyz
     for m in re.finditer(r"accountname=([a-z0-9-]+)", blob):

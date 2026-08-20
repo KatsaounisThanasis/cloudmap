@@ -44,6 +44,41 @@ def _az(args):
     return out.stdout
 
 
+_GUID_RE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+# Matched against the lowercased failure text, first hit wins.
+_GAP_CATEGORIES = (
+    ("authorizationfailed", "authorization denied (RBAC)"),
+    ("forbidden", "authorization denied (RBAC)"),
+    ("denyassignment", "blocked by a deny assignment"),
+    ("invalidaadclustertoken", "cluster token rejected"),
+    ("aadsts", "Entra token rejected"),
+    ("was not found", "not found"),
+    ("notfound", "not found"),
+    ("timed out", "timeout"),
+    ("failed to resolve", "network (DNS)"),
+    ("connection refused", "network"),
+)
+
+
+def classify_gap(message):
+    """Short, artifact-safe reason for a failed read.
+
+    Full az stderr carries correlation ids, subscription GUIDs and sometimes
+    principal ids - useful on the operator's own terminal, wrong inside a
+    JSON/HTML artifact meant to be shared. The terminal keeps the full text;
+    the artifact records the category this returns. Unknown failures fall back
+    to the first line with every GUID masked, so nothing identifying rides
+    along even when the category list has never seen the error."""
+    low = str(message).lower()
+    for needle, label in _GAP_CATEGORIES:
+        if needle in low:
+            return label
+    first_line = str(message).strip().splitlines()[0] if str(message).strip() else ""
+    return _GUID_RE.sub("<id>", first_line)[:120] or "read failed"
+
+
 def _guard():
     try:
         acct = json.loads(_az(["account", "show", "-o", "json"]))
