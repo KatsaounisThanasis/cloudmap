@@ -1,5 +1,8 @@
 # cloudmap
 
+[![CI](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml/badge.svg)](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml) [![PyPI version](https://badge.fury.io/py/cloudmap.svg)](https://badge.fury.io/py/cloudmap)
+
+
 Give it the name of one Azure resource. Get back its **full dependency graph**
 (the blast radius) as an **editable draw.io diagram with native Azure icons** -
 plus Mermaid and JSON.
