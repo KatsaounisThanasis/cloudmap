@@ -245,6 +245,10 @@ def scrub(resources):
 
     Order matters: redact first so a secret never enters the mapping, then map
     the identifiers that survive, then substitute everywhere at once."""
+    for r in resources:
+        if isinstance(r, dict) and "kubernetes_text" in r:
+            del r["kubernetes_text"]
+            
     text = json.dumps(resources)
     text, redactions = redact_credentials(text)
     resources = json.loads(text)
