@@ -1,12 +1,14 @@
-import pytest
-pytest.skip("Interactive wizard tests are broken due to run_az refactor in a3e985c", allow_module_level=True)
 """The zero-argument wizard: what it asks, and what it hands to `trace`.
 
-The wizard is the path most people take, and it is the only place that builds an
-`az` command line by string concatenation and turns a picked row into CLI
-arguments. It is also optional-dependency territory (questionary + rich), so the
-prompts are faked here: no terminal, no Azure CLI, no subprocess. Everything is
-asserted through `run_az` (the single command boundary) and the argv the wizard
+The wizard is the path most people take, and it is the only place that turns a
+picked ARG row into CLI arguments. It is also optional-dependency territory
+(questionary + rich), so the prompts are faked here: no terminal, no Azure CLI,
+no subprocess.
+
+Since a3e985c the wizard no longer builds its own `az` command line; it delegates
+to `cloudmap.ingest.azure._az` and `._graph_paged` (imported inside
+`interactive_main`, so patching them on the source module is what takes effect).
+Everything is therefore asserted through those two calls and the argv the wizard
 finally passes to `cloudmap.cli.main`.
 """
 
@@ -18,6 +20,7 @@ import types
 import pytest
 
 from cloudmap import cli, interactive
+from cloudmap.ingest import azure
 
 WORKLOAD_TYPES = (
     "microsoft.web/sites",
@@ -28,6 +31,16 @@ WORKLOAD_TYPES = (
     "microsoft.sql/servers/databases",
     "microsoft.dbforpostgresql/flexibleservers",
 )
+
+
+@pytest.fixture(autouse=True)
+def _no_real_az(monkeypatch):
+    """No test in this file may reach a real `az`. If one does, fail loudly."""
+
+    def forbidden(*a, **k):
+        raise AssertionError(f"test tried to run a real subprocess: {a!r}")
+
+    monkeypatch.setattr(subprocess, "run", forbidden)
 
 
 class FakeConsole:
@@ -55,22 +68,26 @@ class FakeChoice:
 
 
 class FakePrompts:
-    """Stand-in for questionary: answers each select() from a scripted list."""
+    """Stand-in for questionary: answers each prompt from a scripted list."""
 
     Choice = FakeChoice
 
     def __init__(self, answers):
         self.answers, self.asked = list(answers), []
 
-    def select(self, message, choices=None, **kwargs):
-        self.asked.append((message, list(choices or [])))
+    def _answer(self, message, choices=()):
+        self.asked.append((message, list(choices)))
         answer = self.answers.pop(0)
         return types.SimpleNamespace(ask=lambda: answer)
 
+    def select(self, message, choices=None, **kwargs):
+        return self._answer(message, choices or [])
+
     def confirm(self, message, **kwargs):
-        self.asked.append((message, []))
-        answer = self.answers.pop(0)
-        return types.SimpleNamespace(ask=lambda: answer)
+        return self._answer(message)
+
+    def path(self, message, **kwargs):
+        return self._answer(message)
 
     def choices_for(self, needle):
         return next(c for m, c in self.asked if needle.lower() in m.lower())
@@ -81,13 +98,18 @@ def _row(name, rg="rg1", rtype="microsoft.web/sites", sub="SUB-1"):
             "name": name, "type": rtype, "resourceGroup": rg}
 
 
-SUBS = [{"name": "dev", "id": "SUB-1", "isDefault": False},
-        {"name": "sandbox", "id": "SUB-2", "isDefault": True}]
+SUBS = [{"name": "dev", "id": "SUB-1", "isDefault": False, "tenantId": "t-1"},
+        {"name": "sandbox", "id": "SUB-2", "isDefault": True, "tenantId": "t-2"}]
+
+# The prompt order the wizard asks in: subscription, resource group, resource,
+# enrichment mode, AI confirm, output location.
+def _answers(sub="SUB-1", rg="ALL", resource=None, enrich="auto", llm=False, out="."):
+    return [{"id": sub, "tenantId": "t-1"}, rg, resource, enrich, llm, out]
 
 
 @pytest.fixture
 def wizard(monkeypatch):
-    """Install the fake UI, capture every az command and the trace argv."""
+    """Install the fake UI, capture every az call and the trace argv."""
     monkeypatch.setattr(interactive, "Console", FakeConsole, raising=False)
     monkeypatch.setattr(interactive, "Panel", types.SimpleNamespace(fit=lambda *a, **k: "panel"),
                         raising=False)
@@ -96,7 +118,7 @@ def wizard(monkeypatch):
     monkeypatch.setenv("CLOUDMAP_ALLOW_SUBSCRIPTION", "")
     monkeypatch.delenv("CLOUDMAP_ALLOW_SUBSCRIPTION")
 
-    state = types.SimpleNamespace(commands=[], argv=None, prompts=None)
+    state = types.SimpleNamespace(az_args=[], graph_calls=[], argv=None, prompts=None)
 
     def traced(argv):
         state.argv = argv
@@ -108,67 +130,68 @@ def wizard(monkeypatch):
         state.prompts = FakePrompts(answers)
         monkeypatch.setattr(interactive, "questionary", state.prompts)
 
-        def run_az(cmd, console=None, loading_msg="Loading..."):
-            state.commands.append(cmd)
-            return subs if "account list" in cmd else {"data": rows}
+        def fake_az(args):
+            state.az_args.append(list(args))
+            return json.dumps(subs)
 
-        monkeypatch.setattr(interactive, "run_az", run_az)
+        def fake_graph_paged(kql, subs_arg):
+            state.graph_calls.append((kql, list(subs_arg)))
+            return list(rows), False
+
+        monkeypatch.setattr(azure, "_az", fake_az)
+        monkeypatch.setattr(azure, "_graph_paged", fake_graph_paged)
         return state
 
     state.install = install
     return state
 
 
-# --- the single command boundary -------------------------------------------------
+# --- the az boundary -------------------------------------------------------------
 
-def test_a_missing_azure_cli_is_reported_and_never_raised(monkeypatch):
-    def no_az(*a, **k):
+def test_a_missing_azure_cli_is_reported_and_never_raised(wizard, monkeypatch):
+    wizard.install([], [])
+
+    def no_az(args):
         raise FileNotFoundError("az")
 
-    monkeypatch.setattr(subprocess, "run", no_az)
-    console = FakeConsole()
+    monkeypatch.setattr(azure, "_az", no_az)
 
-    assert interactive.run_az("az account list", console, None) is None
-    assert console.said("not installed")
-
-
-def test_an_az_error_is_shown_with_its_stderr(monkeypatch):
-    def failing(*a, **k):
-        raise subprocess.CalledProcessError(1, "az", stderr="AADSTS50076: MFA required")
-
-    monkeypatch.setattr(subprocess, "run", failing)
-    console = FakeConsole()
-
-    assert interactive.run_az("az account list", console, None) is None
-    assert console.said("AADSTS50076")
+    assert interactive.interactive_main() == 1
+    assert FakeConsole.last.said("failed")
 
 
-def test_non_json_output_is_treated_as_no_result(monkeypatch):
-    monkeypatch.setattr(subprocess, "run",
-                        lambda *a, **k: types.SimpleNamespace(stdout="not json", stderr=""))
+def test_an_az_error_is_shown_with_its_stderr(wizard, monkeypatch):
+    wizard.install([], [])
 
-    assert interactive.run_az("az graph query -q x", FakeConsole(), None) is None
+    def failing(args):
+        raise RuntimeError("az account list failed: AADSTS50076: MFA required")
 
+    monkeypatch.setattr(azure, "_az", failing)
 
-def test_empty_output_is_treated_as_no_result(monkeypatch):
-    monkeypatch.setattr(subprocess, "run",
-                        lambda *a, **k: types.SimpleNamespace(stdout="   ", stderr=""))
-
-    assert interactive.run_az("az graph query -q x", None, None) is None
+    assert interactive.interactive_main() == 1
+    assert FakeConsole.last.said("AADSTS50076")
 
 
-def test_json_output_is_returned_parsed(monkeypatch):
-    monkeypatch.setattr(subprocess, "run",
-                        lambda *a, **k: types.SimpleNamespace(stdout=json.dumps({"data": [1]}),
-                                                              stderr=""))
+def test_non_json_output_is_reported_rather_than_crashing(wizard, monkeypatch):
+    wizard.install([], [])
+    monkeypatch.setattr(azure, "_az", lambda args: "not json")
 
-    assert interactive.run_az("az graph query -q x", None, None) == {"data": [1]}
+    assert interactive.interactive_main() == 1
+    assert FakeConsole.last.said("failed")
+
+
+def test_the_subscription_list_is_read_through_the_shared_az_helper(wizard):
+    state = wizard.install(_answers(resource={"id": _row("a")["id"], "name": "a"}), [_row("a")])
+
+    interactive.interactive_main()
+
+    assert state.az_args[0][:2] == ["account", "list"]
 
 
 # --- subscription step ----------------------------------------------------------
 
 def test_the_default_subscription_is_labelled_and_offered_first(wizard):
-    state = wizard.install([{"id": "SUB-2", "tenantId": "t-2"}, "ALL", {"id": _row("a")["id"], "name": "a"}, "auto", False, "."],
+    state = wizard.install(_answers(sub="SUB-2", resource={"id": _row("a")["id"], "name": "a"}),
                            [_row("a")])
 
     interactive.interactive_main()
@@ -180,8 +203,7 @@ def test_the_default_subscription_is_labelled_and_offered_first(wizard):
 
 def test_no_subscriptions_tells_the_user_to_log_in(wizard, monkeypatch):
     wizard.install([], [])
-    monkeypatch.setattr(interactive, "run_az",
-                        lambda cmd, console=None, loading_msg="Loading...": None)
+    monkeypatch.setattr(azure, "_az", lambda args: "[]")
 
     assert interactive.interactive_main() == 1
     assert FakeConsole.last.said("az login")
@@ -189,53 +211,23 @@ def test_no_subscriptions_tells_the_user_to_log_in(wizard, monkeypatch):
 
 # --- workload query -------------------------------------------------------------
 
-def test_the_workload_query_asks_for_a_thousand_rows_in_one_subscription(wizard):
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": _row("a")["id"], "name": "a"}, "auto", False, "."],
-                           [_row("a")])
+def test_the_workload_query_is_scoped_to_the_chosen_subscription(wizard):
+    state = wizard.install(_answers(resource={"id": _row("a")["id"], "name": "a"}), [_row("a")])
 
     interactive.interactive_main()
-    graph_cmd = next(c for c in state.commands if "graph query" in c)
+    _, subs = state.graph_calls[0]
 
-    assert "--first 1000" in graph_cmd
-    assert "--subscriptions SUB-1" in graph_cmd
+    assert subs == ["SUB-1"]
 
 
 def test_every_supported_seed_workload_type_is_queried(wizard):
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": _row("a")["id"], "name": "a"}, "auto", False, "."],
-                           [_row("a")])
+    state = wizard.install(_answers(resource={"id": _row("a")["id"], "name": "a"}), [_row("a")])
 
     interactive.interactive_main()
-    graph_cmd = next(c for c in state.commands if "graph query" in c)
+    kql, _ = state.graph_calls[0]
 
     for rtype in WORKLOAD_TYPES:
-        assert f"'{rtype}'" in graph_cmd
-
-
-def test_pagination_fetches_multiple_pages_if_skip_token_is_present(wizard, monkeypatch):
-    rows = [_row("app1"), _row("app2")]
-    wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[0]["id"], "name": rows[0]["name"]}, "auto", False, "."], [])
-    
-    call_count = 0
-    def paged_run_az(cmd, console=None, loading_msg="Loading..."):
-        nonlocal call_count
-        if "account list" in cmd:
-            return SUBS
-        
-        # Mock ARG query responses
-        call_count += 1
-        if call_count == 1:
-            return {"data": [rows[0]], "skipToken": "TOKEN1"}
-        elif call_count == 2:
-            return {"data": [rows[1]]} # No token, loop should stop
-            
-    monkeypatch.setattr(interactive, "run_az", paged_run_az)
-
-    interactive.interactive_main()
-
-    # The wizard should have gathered both rows and presented them
-    offered = [c.value["name"] for c in wizard.prompts.choices_for("resource to trace")]
-    assert offered == ["app1", "app2"]
-    assert call_count == 2
+        assert f"'{rtype}'" in kql
 
 
 def test_a_subscription_with_no_workloads_exits_cleanly(wizard):
@@ -247,9 +239,11 @@ def test_a_subscription_with_no_workloads_exits_cleanly(wizard):
 
 def test_a_failed_workload_query_exits_non_zero(wizard, monkeypatch):
     wizard.install([{"id": "SUB-1", "tenantId": "t-1"}], [])
-    monkeypatch.setattr(interactive, "run_az",
-                        lambda cmd, console=None, loading_msg="Loading...":
-                        SUBS if "account list" in cmd else None)
+
+    def failing(kql, subs):
+        raise RuntimeError("AuthorizationFailed")
+
+    monkeypatch.setattr(azure, "_graph_paged", failing)
 
     assert interactive.interactive_main() == 1
     assert FakeConsole.last.said("Failed to fetch resources")
@@ -259,7 +253,7 @@ def test_a_failed_workload_query_exits_non_zero(wizard, monkeypatch):
 
 def test_resource_groups_are_offered_once_each_with_an_all_option(wizard):
     rows = [_row("a", "rg-b"), _row("b", "rg-a"), _row("c", "rg-a")]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[0]["id"], "name": "a"}, "auto", False, "."], rows)
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "a"}), rows)
 
     interactive.interactive_main()
     values = [c.value for c in state.prompts.choices_for("resource group")]
@@ -269,7 +263,7 @@ def test_resource_groups_are_offered_once_each_with_an_all_option(wizard):
 
 def test_choosing_a_resource_group_narrows_the_workload_list(wizard):
     rows = [_row("a", "rg-a"), _row("b", "rg-b")]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "rg-b", {"id": rows[1]["id"], "name": "b"}, "auto", False, "."], rows)
+    state = wizard.install(_answers(rg="rg-b", resource={"id": rows[1]["id"], "name": "b"}), rows)
 
     interactive.interactive_main()
     offered = [c.value["name"] for c in state.prompts.choices_for("resource to trace")]
@@ -279,7 +273,7 @@ def test_choosing_a_resource_group_narrows_the_workload_list(wizard):
 
 def test_a_resource_choice_carries_both_its_id_and_its_name(wizard):
     rows = [_row("a")]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[0]["id"], "name": "a"}, "auto", False, "."], rows)
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "a"}), rows)
 
     interactive.interactive_main()
     choice = state.prompts.choices_for("resource to trace")[0]
@@ -290,15 +284,16 @@ def test_a_resource_choice_carries_both_its_id_and_its_name(wizard):
 def test_the_trace_is_seeded_with_the_exact_arm_id_not_the_name(wizard):
     # Two workloads share the name; only the id can identify the one picked.
     rows = [_row("app", "rg-a"), _row("app", "rg-b")]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[1]["id"], "name": "app"}, "auto", False, "."], rows)
+    state = wizard.install(_answers(resource={"id": rows[1]["id"], "name": "app"}), rows)
 
     assert interactive.interactive_main() == 0
     assert state.argv[:2] == ["trace", rows[1]["id"]]
 
 
-def test_the_trace_runs_live_against_only_the_chosen_subscription(wizard, monkeypatch):
+def test_the_trace_runs_live_against_only_the_chosen_subscription(wizard):
     rows = [_row("app")]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[0]["id"], "name": "app"}, "all", False, "."], rows)
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "app"}, enrich="all"),
+                           rows)
 
     interactive.interactive_main()
 
@@ -307,11 +302,11 @@ def test_the_trace_runs_live_against_only_the_chosen_subscription(wizard, monkey
     assert state.argv[state.argv.index("--enrich") + 1] == "all"
 
 
-def test_the_chosen_subscription_is_pinned_for_the_trace(wizard, monkeypatch):
+def test_the_chosen_subscription_is_pinned_for_the_trace(wizard):
     import os
 
     rows = [_row("app")]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[0]["id"], "name": "app"}, "auto", False, "."], rows)
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "app"}), rows)
 
     interactive.interactive_main()
 
@@ -319,10 +314,9 @@ def test_the_chosen_subscription_is_pinned_for_the_trace(wizard, monkeypatch):
     assert state.argv is not None
 
 
-def test_all_three_artifacts_are_named_after_the_resource(wizard):
+def test_the_output_directory_is_handed_to_trace(wizard):
     rows = [_row("orders-api")]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[0]["id"], "name": "orders-api"}, "auto", False, "."],
-                           rows)
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "orders-api"}), rows)
 
     interactive.interactive_main()
 
@@ -330,11 +324,46 @@ def test_all_three_artifacts_are_named_after_the_resource(wizard):
     assert state.argv[state.argv.index("--out-dir") + 1] == "."
 
 
+def test_a_custom_output_path_is_asked_for_and_used(wizard):
+    rows = [_row("app")]
+    answers = _answers(resource={"id": rows[0]["id"], "name": "app"}, out="CUSTOM")
+    answers.append("/tmp/maps")          # the questionary.path() follow-up
+    state = wizard.install(answers, rows)
+
+    assert interactive.interactive_main() == 0
+    assert state.argv[state.argv.index("--out-dir") + 1] == "/tmp/maps"
+
+
+def test_declining_the_ai_pass_leaves_the_llm_flag_off(wizard):
+    rows = [_row("app")]
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "app"}, llm=False), rows)
+
+    interactive.interactive_main()
+
+    assert "--llm" not in state.argv
+
+
+def test_accepting_the_ai_pass_adds_the_llm_flag(wizard):
+    rows = [_row("app")]
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "app"}, llm=True), rows)
+
+    interactive.interactive_main()
+
+    assert "--llm" in state.argv
+
+
 @pytest.mark.parametrize("answers", [
-    [None],                                                     # subscription
-    [{"id": "SUB-1", "tenantId": "t-1"}, None],                                            # resource group
-    [{"id": "SUB-1", "tenantId": "t-1"}, "ALL", None],                                     # resource
-    [{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": "/x", "name": "x"}, None],          # enrichment mode
+    pytest.param([None], id="subscription"),
+    pytest.param([{"id": "SUB-1", "tenantId": "t-1"}, None], id="resource-group"),
+    pytest.param([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", None], id="resource"),
+    pytest.param([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": "/x", "name": "x"}, None],
+                 id="enrichment-mode"),
+    pytest.param([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": "/x", "name": "x"}, "auto",
+                  None], id="ai-confirm"),
+    pytest.param([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": "/x", "name": "x"}, "auto",
+                  False, None], id="output-location"),
+    pytest.param([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": "/x", "name": "x"}, "auto",
+                  False, "CUSTOM", None], id="custom-path"),
 ])
 def test_cancelling_any_prompt_aborts_without_tracing(wizard, answers):
     state = wizard.install(answers, [_row("a")])
@@ -345,7 +374,7 @@ def test_cancelling_any_prompt_aborts_without_tracing(wizard, answers):
 
 def test_a_workload_row_without_a_resource_group_does_not_crash_the_wizard(wizard):
     rows = [_row("a", "rg-a"), dict(_row("b", "rg-b"), resourceGroup=None)]
-    state = wizard.install([{"id": "SUB-1", "tenantId": "t-1"}, "ALL", {"id": rows[0]["id"], "name": "a"}, "auto", False, "."], rows)
+    state = wizard.install(_answers(resource={"id": rows[0]["id"], "name": "a"}), rows)
 
     assert interactive.interactive_main() == 0
     assert state.argv[:2] == ["trace", rows[0]["id"]]
