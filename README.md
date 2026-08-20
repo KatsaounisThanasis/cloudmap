@@ -37,7 +37,14 @@ pip install cloudmap
 
 Python 3.9+. Two runtime dependencies (`rich` and `questionary`, both for the
 terminal UI). Live mode additionally needs the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
-on your PATH, and the optional AI passes need a local [ollama](https://ollama.com).
+on your PATH. The optional AI passes need a local model server - [ollama](https://ollama.com)
+works out of the box, and any OpenAI-compatible server (LM Studio, llama.cpp,
+vLLM, LocalAI) works via two env vars:
+
+```
+export CLOUDMAP_LLM_URL=http://localhost:1234/v1/chat/completions   # your server
+export CLOUDMAP_LLM_MODEL=<model name>                              # default: qwen2.5-coder:3b
+```
 
 <details>
 <summary>Working on it instead</summary>
@@ -215,7 +222,7 @@ If the map itself says it is incomplete, every answer from it repeats that warni
 ```
 cloudmap ask <map.json> "<question>"
 
-  --explain      also narrate the answer with a LOCAL model (ollama)
+  --explain      also narrate the answer with a LOCAL model
   --llm          if no built-in rule understands the phrasing, let a LOCAL model
                  pick the query (its choice is validated against the map)
   --max-hops N   limit traversal depth
@@ -261,7 +268,7 @@ everything".
                         all | seed | none
   --resolve-secrets     read KV secret values in-memory to see through KV-backed
                         connection strings (never printed or written)
-  --llm                 let a LOCAL model (ollama) propose extra edges, each
+  --llm                 let a LOCAL model propose extra edges, each
                         verified against scanned resources before it is trusted
 ```
 

@@ -300,7 +300,7 @@ def test_llm_routing_result_is_still_computed_by_the_query(monkeypatch):
 # --- degradation and honesty ----------------------------------------------------
 
 def test_answer_works_with_no_model_available():
-    # local_model.generate() returns "" when ollama is absent; the deterministic
+    # local_model.generate() returns "" when no local model is running; the deterministic
     # answer must be complete anyway and the narration simply empty.
     graph, seed = _real()
     res = answer(graph, f"what does {graph.nodes[seed].name} depend on")

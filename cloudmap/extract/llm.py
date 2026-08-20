@@ -12,13 +12,15 @@ Trust is preserved by two rails, not by trusting the model:
    is exactly what must not reach the map. Verified edges are still marked
    origin="model" (drawn dashed), because the model supplied the relationship.
 
-Local by design (ollama) - the resource JSON never leaves the machine.
+Local by design - the model runs on your machine (ollama by default, any
+OpenAI-compatible server via CLOUDMAP_LLM_URL) and the resource JSON never
+leaves it.
 """
 
 import json
 import re
 
-from ..local_model import DEFAULT_MODEL, OLLAMA_URL, generate_json  # noqa: F401  (re-exported)
+from ..local_model import DEFAULT_MODEL, LLM_URL, OLLAMA_URL, generate_json  # noqa: F401  (re-exported)
 from ..model import Edge
 
 # A plausible dependency target is a hostname / resource name / ARM id - never a
@@ -47,7 +49,7 @@ Resource JSON:
 
 def propose_edges(resource_raw, model=None, timeout=600):
     """Ask the local model for candidate edges. Returns [(target, relationship)].
-    Empty list on any failure (ollama down, bad JSON, timeout)."""
+    Empty list on any failure (model server down, bad JSON, timeout)."""
     prompt = _PROMPT.format(rtype=resource_raw.get("type", "unknown"),
                             resource=json.dumps(resource_raw, indent=2))
     parsed = generate_json(prompt, model=model, timeout=timeout)

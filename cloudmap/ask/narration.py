@@ -5,7 +5,7 @@ trust labels - and told to add nothing. The deterministic answer is printed abov
 the narration either way, so if the prose drifts, what the reader sees is a
 narration disagreeing with the facts printed right above it, not a wrong answer.
 
-Empty string on any failure: no ollama means no prose, never a missing answer.
+Empty string on any failure: no local model means no prose, never a missing answer.
 """
 
 import json

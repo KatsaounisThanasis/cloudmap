@@ -38,7 +38,7 @@ def main(argv=None):
                    help="live: read KV secret values in-memory to see through KV-backed "
                         "connection strings (never printed or written)")
     t.add_argument("--llm", action="store_true",
-                   help="also let a LOCAL model (ollama) propose edges from the seed's JSON; "
+                   help="also let a LOCAL model propose edges from the seed's JSON; "
                         "each proposal is verified against scanned resources (nothing leaves the machine)")
     t.add_argument("--enrich", choices=["auto", "seed", "all", "none"], default="auto",
                    help="live: which web apps to deep-enrich for the dependencies that live "
@@ -85,7 +85,7 @@ def main(argv=None):
     a.add_argument("map", help="a cloudmap graph JSON (written by `trace --json`) or a raw export")
     a.add_argument("question", help='e.g. "what breaks if I touch kv-orders-dev"')
     a.add_argument("--explain", action="store_true",
-                   help="also narrate the answer with a LOCAL model (ollama); the computed "
+                   help="also narrate the answer with a LOCAL model; the computed "
                         "answer is printed either way")
     a.add_argument("--llm", action="store_true",
                    help="if no built-in rule understands the question, let a LOCAL model pick "
@@ -142,7 +142,7 @@ def _cmd_trace(args):
         from rich.console import Console
         from rich.progress import Progress, SpinnerColumn, TextColumn
         console = Console(stderr=True)
-        console.print("[bold yellow]Running local model (ollama) on blast radius nodes to propose hidden edges...[/bold yellow]")
+        console.print("[bold yellow]Running local model on blast radius nodes to propose hidden edges...[/bold yellow]")
         from .extract.extractors import Resolver, merge_model_edges
         from .extract.llm import llm_edges_for_seed
         

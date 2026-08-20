@@ -175,7 +175,7 @@ def interactive_main():
         
     # 3.2 AI Edge Proposals (Phase 3)
     use_llm = questionary.confirm(
-        "Use local AI (Ollama) to discover hidden dependencies? (Slower, but finds undocumented links)",
+        "Use a local AI model to discover hidden dependencies? (Slower, but finds undocumented links)",
         default=False,
         style=custom_style
     ).ask()

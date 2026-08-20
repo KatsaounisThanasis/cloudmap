@@ -1,7 +1,7 @@
 """The LLM path must stay a proposer behind a verifier: only proposals whose
 target resolves to a real scanned resource survive, secret-looking targets are
-rejected, and with no model available it contributes nothing. No ollama needed -
-generate_json is monkeypatched."""
+rejected, and with no model available it contributes nothing. No model server
+needed - generate_json is monkeypatched."""
 
 from cloudmap.extract import llm
 from cloudmap.extract.extractors import Resolver
@@ -41,6 +41,6 @@ def test_secretish_targets_are_rejected(monkeypatch):
 
 def test_no_model_available_contributes_nothing(monkeypatch):
     seed, resolver = _seed_and_resolver()
-    monkeypatch.setattr(llm, "generate_json", lambda *a, **k: {})   # ollama down -> {}
+    monkeypatch.setattr(llm, "generate_json", lambda *a, **k: {})   # model down -> {}
 
     assert llm_edges_for_seed(seed, resolver) == ([], [])
