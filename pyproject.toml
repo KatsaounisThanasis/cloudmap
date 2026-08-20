@@ -4,10 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cloudmap"
-version = "1.0.0rc1"
-description = "Trace the blast radius of your Azure resources with style."
+dynamic = ["version"]
+description = "Trace the blast radius of an Azure resource: one name in, a verified dependency graph out."
 readme = "README.md"
 requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Thanos Katsaounis" }]
+keywords = [
+    "azure", "blast-radius", "dependency-graph", "azure-resource-graph",
+    "drawio", "mermaid", "devops", "sre", "incident-response",
+]
 dependencies = [
     "rich>=13.0.0",
     "questionary>=2.0.0"
@@ -16,13 +22,30 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Systems Administration",
+    "Topic :: System :: Monitoring",
 ]
+
+[project.urls]
+Homepage = "https://github.com/KatsaounisThanasis/cloudmap"
+Repository = "https://github.com/KatsaounisThanasis/cloudmap"
+Issues = "https://github.com/KatsaounisThanasis/cloudmap/issues"
+Changelog = "https://github.com/KatsaounisThanasis/cloudmap/releases"
 
 [project.scripts]
 cloudmap = "cloudmap.cli:main"
+
+[tool.hatch.version]
+path = "cloudmap/__init__.py"
 
 [tool.ruff]
 line-length = 180

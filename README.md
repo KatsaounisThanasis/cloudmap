@@ -1,11 +1,13 @@
 # cloudmap
 
-[![CI](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml/badge.svg)](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml) [![PyPI version](https://badge.fury.io/py/cloudmap.svg)](https://badge.fury.io/py/cloudmap)
+[![CI](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml/badge.svg)](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/cloudmap?color=1f7a8c)](https://pypi.org/project/cloudmap/)
+[![Python](https://img.shields.io/pypi/pyversions/cloudmap?color=1f7a8c)](https://pypi.org/project/cloudmap/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-
-Give it the name of one Azure resource. Get back its **full dependency graph**
-(the blast radius) as an **editable draw.io diagram with native Azure icons** -
-plus Mermaid and JSON.
+**Give it the name of one Azure resource. Get back its full dependency graph -
+the blast radius - as an editable draw.io diagram with native Azure icons, plus
+an interactive HTML viewer, Mermaid, JSON and CSV.**
 
 Azure Resource Graph has no "dependencies" table. The relationships that matter
 - what an App Service is hosted on, which Key Vault it reads, which subnet it
@@ -14,27 +16,56 @@ Endpoint fronts, which App Gateway routes to it - are buried inside each
 resource's `properties`. cloudmap reads them out, correlates them into one
 graph, and draws it.
 
+![The interactive HTML viewer: the seed at the centre, dependencies fanned out with native Azure icons, each edge carrying its relationship and proof](estate-viewer.png)
+
+**Contents** · [Install](#install) · [60-second demo](#60-second-demo) ·
+[Interactive wizard](#interactive-wizard) · [Why](#why) ·
+[What it maps](#what-it-maps) · [How it works](#how-it-works) ·
+[Ask a map questions](#ask-a-map-questions) · [Live Azure](#live-azure-opt-in) ·
+[Capture and scrub](#capture-a-real-export-so-the-tests-can-be-wrong) ·
+[Usage reference](#usage-reference)
+
+## Install
+
+```
+pip install cloudmap
+```
+
+Python 3.9+. Two runtime dependencies (`rich` and `questionary`, both for the
+terminal UI). Live mode additionally needs the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
+on your PATH, and the optional AI passes need a local [ollama](https://ollama.com).
+
+To work on it instead:
+
+```
+git clone https://github.com/KatsaounisThanasis/cloudmap && cd cloudmap
+pip install -e ".[dev]" && pytest
+```
+
+## 60-second demo
+
+No Azure account needed - the repo ships a synthetic estate:
+
 ```
 cloudmap trace contoso-web --from fixtures/contoso.json -o contoso-web.drawio
 ```
 
+```text
+Blast radius: 9 resources (0 external), 9 dependencies
+╭────────────────────────────── Dependency Graph ──────────────────────────────╮
+│ 🌐 contoso-web                                                               │
+│ ├── --hosted-on--> 📦 App Service Plan                                       │
+│ ├── --vnet-integration--> 📦 Virtual Network                                 │
+│ ├── --connects-to--> 🗄️ SQL Server                                           │
+│ ├── --sends-telemetry--> 📦 App Insights                                     │
+│ │   └── --uses-workspace--> 📦 Log Analytics                                 │
+│ ├── --reads-secret; role: Key Vault Secrets User--> 🔐 Key Vault             │
+│ └── --connects-to--> 📦 Storage                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+🔗 draw.io: contoso-web.drawio
 ```
-Seed: contoso-web (microsoft.web/sites)
-Blast radius: 9 resources (0 external/unverified), 9 dependencies
-draw.io: contoso-web.drawio
 
-  contoso-web  --hosted-on-->  App Service Plan
-  contoso-web  --vnet-integration-->  Virtual Network
-  contoso-web  --reads-secret; role: Key Vault Secrets User-->  Key Vault
-  contoso-web  --connects-to-->  SQL Server
-  contoso-web  --connects-to-->  Storage
-  contoso-web  --sends-telemetry-->  App Insights
-  App Insights  --uses-workspace-->  Log Analytics
-  App Gateway  --in-subnet-->  Virtual Network
-  App Gateway  --routes-to-->  contoso-web
-```
-
-And here is the rich dependency tree generated directly in your terminal:
+On a real estate it goes several layers deep:
 
 ```text
 Blast radius: 15 resources (0 external), 14 dependencies
@@ -60,22 +91,27 @@ Blast radius: 15 resources (0 external), 14 dependencies
 (That is the default **high-level** view - resources grouped by type. Add
 `--level detail` to see every instance with its real name.)
 
-Open the `.drawio` file in [draw.io](https://app.diagrams.net) / the desktop app
-/ the VS Code extension and edit it like any hand-drawn diagram - or open the
-self-contained `--html` viewer straight from disk (no server, no install) and
-click a resource to focus its blast radius:
+### Output formats
 
+| Flag | You get |
+|---|---|
+| `-o FILE` | **draw.io** diagram with native Azure icons - open it in [draw.io](https://app.diagrams.net), the desktop app or the VS Code extension and edit it like any hand-drawn diagram |
+| `--html FILE` | **Interactive viewer**: one self-contained file, no server and no CDN. Dark mode, edges colour-coded by relationship type (security / data / network), resource-group filters and search, SVG + PNG export, and direct links into the Azure portal |
+| `--mermaid FILE` | Mermaid source, for embedding in Markdown docs |
+| `--json FILE` | The graph itself - this is what `cloudmap ask` reads |
+| `--csv FILE` | Flat edge list with evidence, for a spreadsheet or an auditor |
 
-### Interactive HTML Viewer 🎨
-The `--html` output generates a **single, self-contained HTML file** (no server, no CDN, no internet required) that includes:
-- **Dark Mode Toggle** for better readability.
-- **Color-Coded Edges** by relationship type (e.g., 🟡 *Security*, 🟢 *Data*, 🔵 *Network*).
-- **Export to SVG / PNG** buttons for high-resolution snapshots.
-- **Resource Group Filters** & Smart Search.
-- **Direct Azure Portal Links** to jump straight to the resource in your cloud.
+## Interactive wizard
 
-![The interactive HTML viewer: the seed at the centre, dependencies fanned out with native Azure icons, each edge carrying its relationship and proof](estate-viewer.png)
+Run it with no arguments and it walks you through the whole thing:
 
+```
+cloudmap
+```
+
+It asks for a subscription (yours is marked as the default), then a resource
+group, then the resource to trace, then how deeply to enrich, and where to write
+the results. It reads live Azure, so `az login` first.
 
 ## Why
 
@@ -86,19 +122,30 @@ The `--html` output generates a **single, self-contained HTML file** (no server,
 - **Impact analysis, onboarding, change reviews.** "What breaks if I touch this?"
   in one diagram instead of ten portal blades.
 
-## Real-World Scenarios (Why you need this)
+### Three things people use it for
 
-### 1. The "Safe to Delete?" Scenario (FinOps / Cloud Cost Cleanup)
-A developer spots an expensive Azure SQL Database (`sql-orders-dev`) that looks orphaned in the portal. They want to delete it to save $500/month. 
-By running `cloudmap trace sql-orders-dev --direction up`, the tool deep-enriches the connection strings of all Web Apps in the subscription. The map instantly reveals that a *production* Web App is mistakenly pointing to this dev database! The engineer just avoided a catastrophic outage.
+**Is this safe to delete?** An Azure SQL database looks orphaned in the portal and
+someone wants it gone to save the monthly bill. `cloudmap trace sql-orders-dev
+--direction up` deep-enriches the connection strings of the web apps in the
+subscription and shows what still points at it - including, occasionally, a
+production app that was never supposed to.
 
-### 2. The "Incident Response / Root Cause" Scenario (SRE)
-At 3:00 AM, alerts fire because `payment-api` (an AKS cluster) is failing. The team is blind.
-Running the CloudMap interactive wizard on `payment-api` generates an HTML dependency graph in 5 seconds. It shows the cluster depends on a Key Vault (`kv-pay`). Checking the vault reveals someone changed its firewall rules 10 minutes ago. Cloudmap provides the exact *Evidence* ("found in Kubernetes secret X"), identifying the root cause instantly.
+**What is actually broken?** An AKS cluster starts failing at 3am. Tracing it
+produces a dependency graph with the Key Vault it reads, and the map carries the
+evidence for that edge ("found in Kubernetes secret X"), so the next question -
+did anything change on that vault - has a place to start.
 
-### 3. The "Compliance & Auditor Review" Scenario (Security)
-An auditor asks: *"Which systems have access to the Storage Account containing PII customer data?"*
-Instead of manually clicking through 50 IAM screens in the Azure Portal, you run `cloudmap trace pii-storage --direction up --csv pii-audit.csv`. In seconds, you hand the auditor a clean spreadsheet showing exactly which Web Apps and AKS clusters have Managed Identity RBAC access to the storage, complete with the exact Role Assignments as proof.
+**Who has access to this?** An auditor asks which systems can reach the storage
+account holding customer data. `cloudmap trace pii-storage --direction up --csv
+pii-audit.csv` hands back a spreadsheet of the web apps and clusters with managed
+identity RBAC on it, with the role assignments as proof.
+
+## What it maps
+
+App Service / Functions, Container Apps (+ environments), AKS, App Gateway, API
+Management, Key Vault, Storage, SQL / PostgreSQL / MySQL / Cosmos, Redis, Service
+Bus, Event Hub, Cognitive Search, Azure OpenAI, Container Registry, Log Analytics,
+App Insights, VNets, Private Endpoints and managed identities.
 
 ## How it works
 
@@ -110,36 +157,12 @@ Instead of manually clicking through 50 IAM screens in the Azure Portal, you run
    it), but once it steps in one direction it never reverses. That single rule
    keeps a shared resource (App Service Plan, VNet, Key Vault) from bridging your
    seed to unrelated apps sitting on the same thing.
-4. **Render** - draw.io (Azure icons) + Mermaid + JSON + a self-contained HTML viewer.
+4. **Render** - draw.io (Azure icons) + Mermaid + JSON + CSV + a self-contained HTML viewer.
 5. **Ask** - query the saved map in plain language (`cloudmap ask`); the answers are
    computed from the graph, and a local model may only route the question or narrate
    the result.
 
-## Usage
-
-```
-cloudmap trace <name> --from <fixture.json> [options]
-
-  --level high|detail        high = architecture view grouped by type (default);
-                             one box per type, so instance names are not in the map
-                             detail = every instance with its real name
-  --direction both|down|up   both = full blast radius (default)
-                             down = only what it depends on
-                             up   = only what depends on it
-  --max-hops N               limit traversal depth
-  -o FILE                    draw.io output (default: <name>.blast.drawio)
-  --mermaid FILE             also write Mermaid
-  --json FILE                also write the graph as JSON
-  --html FILE                also write a self-contained interactive HTML viewer
-```
-
-Try it with the bundled synthetic estate:
-
-```
-cloudmap trace contoso-web --from fixtures/contoso.json --mermaid out.mmd --json out.json
-```
-
-### Ask a map questions
+## Ask a map questions
 
 ```
 cloudmap ask <map.json> "<question>"
@@ -181,32 +204,7 @@ cannot promote a guess to one. Every finding shows the hops behind it and the pr
 of each hop, and a finding that leans on a model-proposed edge is marked `[GUESS]`.
 If the map itself says it is incomplete, every answer from it repeats that warning.
 
-### Capture a real export (so the tests can be wrong)
-
-A fixture you wrote yourself can only confirm what you already believe. `capture`
-saves what Azure actually returned, scrubs it, and gives you something that can
-contradict the extractors.
-
-```
-cloudmap capture --allow-live --single-sub -o fixtures/captured_real.json
-cloudmap scrub  raw-export.json -o fixtures/captured_real.json   # for a file you already have
-```
-
-The scrub is a **global, consistent** pseudonymisation, not a field-by-field
-blanking: `kv-payments` becomes `kv-1` everywhere at once, so the app setting that
-references `kv-payments.vault.azure.net` still points at the same vault
-afterwards. What survives on purpose: service domain suffixes (the rules read them
-to decide what an edge means), built-in role GUIDs (public Azure constants) and
-private IP ranges (that is the topology). What does not: names, resource groups,
-subscription and principal GUIDs, e-mails, public IPs, and any
-password / key / SAS fragment, which is redacted rather than renamed.
-
-The mapping is never written to disk - it is the re-identification key. Counts are
-printed, the mapping is not. **A scrubber is not a proof: read the file before you
-commit it.** `--no-scrub` exists for local debugging and writes credentials to
-disk; keep those files named `*.live.json` so `.gitignore` catches them.
-
-### Live Azure (opt-in)
+## Live Azure (opt-in)
 
 ```
 cloudmap trace my-app --live --allow-live
@@ -248,24 +246,57 @@ silently dropping edges, and warns when a scan is truncated - so you know when t
 picture is incomplete. Fixtures are always the default.
 **Do not point this at data you are not authorized to read.**
 
-## Install
+## Capture a real export (so the tests can be wrong)
+
+A fixture you wrote yourself can only confirm what you already believe. `capture`
+saves what Azure actually returned, scrubs it, and gives you something that can
+contradict the extractors.
 
 ```
-git clone https://github.com/KatsaounisThanasis/cloudmap && cd cloudmap
-pip install -e .          # or just: python -m cloudmap trace ...
+cloudmap capture --allow-live --single-sub -o fixtures/captured_real.json
+cloudmap scrub  raw-export.json -o fixtures/captured_real.json   # for a file you already have
 ```
 
-No third-party dependencies - Python 3.9+ standard library only.
+The scrub is a **global, consistent** pseudonymisation, not a field-by-field
+blanking: `kv-payments` becomes `kv-1` everywhere at once, so the app setting that
+references `kv-payments.vault.azure.net` still points at the same vault
+afterwards. What survives on purpose: service domain suffixes (the rules read them
+to decide what an edge means), built-in role GUIDs (public Azure constants) and
+private IP ranges (that is the topology). What does not: names, resource groups,
+subscription and principal GUIDs, e-mails, public IPs, and any
+password / key / SAS fragment, which is redacted rather than renamed.
 
-Supported today: App Service / Functions, Container Apps (+ environments), AKS,
-App Gateway, API Management, Key Vault, Storage, SQL / PostgreSQL / MySQL / Cosmos,
-Redis, Service Bus, Event Hub, Cognitive Search, Azure OpenAI, Container Registry,
-Log Analytics, App Insights, VNets, Private Endpoints and managed identities.
+The mapping is never written to disk - it is the re-identification key. Counts are
+printed, the mapping is not. **A scrubber is not a proof: read the file before you
+commit it.** `--no-scrub` exists for local debugging and writes credentials to
+disk; keep those files named `*.live.json` so `.gitignore` catches them.
+
+## Usage reference
+
+```
+cloudmap trace <name> (--from <fixture.json> | --live) [options]
+
+  --level high|detail        high = architecture view grouped by type (default);
+                             one box per type, so instance names are not in the map
+                             detail = every instance with its real name
+  --direction both|down|up   both = full blast radius (default)
+                             down = only what it depends on
+                             up   = only what depends on it
+  --max-hops N               limit traversal depth
+  -o FILE                    draw.io output (default: <name>.blast.drawio)
+  --mermaid FILE             also write Mermaid
+  --json FILE                also write the graph as JSON
+  --html FILE                also write a self-contained interactive HTML viewer
+  --csv FILE                 also write the edge list as CSV
+  -d, --out-dir DIR          write every artifact into DIR, named after the seed
+```
+
+Other subcommands: `cloudmap capture`, `cloudmap scrub`, `cloudmap ask` (see above).
 
 ## Roadmap
 
-- Slice 2: Terraform state ingestor + drift overlay (desired vs actual).
-- Slice 3: AKS / Kubernetes workload correlation.
+- Terraform state ingestor + drift overlay (desired vs actual).
+- Deeper AKS / Kubernetes workload correlation.
 - Resource-group and application (tag-based) seeds.
 - More edge extractors and Azure icon mappings (Container Apps still render as a
   labelled box - an icon is only added once its azure2 asset path is verified).

@@ -1,0 +1,91 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1280px; height:640px; }
+  body {
+    background:#0f1720;
+    color:#e8edf2;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    display:flex; align-items:center;
+    position:relative; overflow:hidden;
+  }
+  /* subtle grid ground */
+  body::before {
+    content:""; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size:40px 40px;
+  }
+  .left { width:660px; padding:0 0 0 76px; position:relative; z-index:2; }
+  .mark { display:flex; align-items:center; gap:14px; margin-bottom:26px; }
+  .dot { width:13px; height:13px; border-radius:50%; background:#33c3f0; box-shadow:0 0 0 6px rgba(51,195,240,.15); }
+  .name { font-size:52px; font-weight:700; letter-spacing:-1.2px; }
+  h1 { font-size:35px; line-height:1.28; font-weight:600; letter-spacing:-.7px; margin-bottom:22px; }
+  h1 em { font-style:normal; color:#33c3f0; }
+  p { font-size:20px; line-height:1.55; color:#93a4b4; max-width:530px; margin-bottom:32px; }
+  code {
+    font-family:"SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size:19px; background:#1a2531; border:1px solid #2c3b4c;
+    border-radius:8px; padding:11px 18px; display:inline-block; color:#cfe3f2;
+  }
+  code b { color:#33c3f0; font-weight:400; }
+  .right { position:absolute; right:0; top:0; width:620px; height:640px; z-index:1; }
+</style>
+<body>
+  <div class="left">
+    <div class="mark"><span class="dot"></span><span class="name">cloudmap</span></div>
+    <h1>One Azure resource name in.<br>Its <em>whole blast radius</em> out.</h1>
+    <p>Reads the dependencies Resource Graph will not tell you, correlates them
+       into one graph, and draws it. Runs locally.</p>
+    <code>pip install <b>cloudmap</b></code>
+  </div>
+
+  <svg class="right" viewBox="0 0 620 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="a" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto">
+        <polygon points="0 0, 7 3, 0 6" fill="#4a5d70"/>
+      </marker>
+      <marker id="acc" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto">
+        <polygon points="0 0, 7 3, 0 6" fill="#33c3f0"/>
+      </marker>
+    </defs>
+
+    <!-- edges: fanned attach points on the seed's right edge, one trunk each,
+         every path ends on the target's left edge so the arrowhead is visible -->
+    <path d="M172 301 H 210 V 95  H 380" stroke="#33c3f0" stroke-width="1.8" marker-end="url(#acc)"/>
+    <path d="M172 311 H 240 V 205 H 380" stroke="#4a5d70" stroke-width="1.6" marker-end="url(#a)"/>
+    <path d="M172 320 H 380" stroke="#4a5d70" stroke-width="1.6" marker-end="url(#a)"/>
+    <path d="M172 329 H 240 V 425 H 380" stroke="#33c3f0" stroke-width="1.8" marker-end="url(#acc)"/>
+    <path d="M172 339 H 210 V 535 H 380" stroke="#4a5d70" stroke-width="1.6" marker-end="url(#a)"/>
+
+    <!-- seed -->
+    <rect x="40" y="292" width="132" height="56" rx="9" fill="#12313f" stroke="#33c3f0" stroke-width="2"/>
+    <text x="106" y="317" font-family="-apple-system, Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#e8edf2" text-anchor="middle">orders-api</text>
+    <text x="106" y="335" font-family="SF Mono, Menlo, monospace" font-size="10" fill="#7fd6f5" text-anchor="middle">SEED</text>
+
+    <!-- neighbours -->
+    <g font-family="-apple-system, Segoe UI, sans-serif" font-size="12.5" font-weight="600" fill="#dbe5ee" text-anchor="middle">
+      <rect x="380" y="70" width="132" height="50" rx="8" fill="#18242f" stroke="#3c4d60"/>
+      <text x="446" y="92">Key Vault</text>
+      <text x="446" y="108" font-size="9.5" font-family="SF Mono, Menlo, monospace" fill="#7d8fa1">reads-secret</text>
+
+      <rect x="380" y="180" width="132" height="50" rx="8" fill="#18242f" stroke="#3c4d60"/>
+      <text x="446" y="202">App Service Plan</text>
+      <text x="446" y="218" font-size="9.5" font-family="SF Mono, Menlo, monospace" fill="#7d8fa1">hosted-on</text>
+
+      <rect x="380" y="295" width="132" height="50" rx="8" fill="#18242f" stroke="#3c4d60"/>
+      <text x="446" y="317">SQL Database</text>
+      <text x="446" y="333" font-size="9.5" font-family="SF Mono, Menlo, monospace" fill="#7d8fa1">connects-to</text>
+
+      <rect x="380" y="400" width="132" height="50" rx="8" fill="#18242f" stroke="#3c4d60"/>
+      <text x="446" y="422">Private Endpoint</text>
+      <text x="446" y="438" font-size="9.5" font-family="SF Mono, Menlo, monospace" fill="#7d8fa1">private-link-to</text>
+
+      <rect x="380" y="510" width="132" height="50" rx="8" fill="#18242f" stroke="#3c4d60"/>
+      <text x="446" y="532">Virtual Network</text>
+      <text x="446" y="548" font-size="9.5" font-family="SF Mono, Menlo, monospace" fill="#7d8fa1">vnet-integration</text>
+    </g>
+  </svg>
+</body>

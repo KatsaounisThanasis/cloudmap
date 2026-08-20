@@ -8,7 +8,6 @@ resolution-markers = [
 
 [[package]]
 name = "cloudmap"
-version = "1.0.0rc1"
 source = { editable = "." }
 dependencies = [
     { name = "questionary" },
