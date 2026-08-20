@@ -239,9 +239,15 @@ purpose. **Do not point this at data you are not authorized to read.**
 cloudmap trace my-app --live --allow-live
 ```
 
-If a live read fails (e.g. missing RBAC), cloudmap **reports the gap** instead of
-silently dropping edges, and warns when a scan is truncated - so you know when the
-picture is incomplete.
+**cloudmap runs as you.** It has no credentials of its own - every read goes through
+the Azure CLI with your `az login` token, so it sees exactly what your account can
+see and nothing more. Resource Graph filters by RBAC, so resources you cannot read
+simply do not appear (Azure raises no error for them - they are invisible, not
+denied). Deep reads your role does not allow (app settings, Key Vault values, AKS
+manifests) fail visibly instead: cloudmap **reports the gap** on the map rather than
+silently dropping edges, and warns when a scan is truncated - so a small graph on a
+low-privilege account reads as "this is what I was allowed to see", not "this is
+everything".
 
 <details>
 <summary><b>Flags, enrichment and the subscription pin</b></summary>
