@@ -1,13 +1,26 @@
-# cloudmap
+<div align="center">
 
-[![CI](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml/badge.svg)](https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/cloudmap?color=1f7a8c)](https://pypi.org/project/cloudmap/)
-[![Python](https://img.shields.io/pypi/pyversions/cloudmap?color=1f7a8c)](https://pypi.org/project/cloudmap/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+<img src="docs/social-preview.png" alt="cloudmap — one Azure resource name in, its whole blast radius out" width="820">
 
-**Give it the name of one Azure resource. Get back its full dependency graph -
-the blast radius - as an editable draw.io diagram with native Azure icons, plus
-an interactive HTML viewer, Mermaid, JSON and CSV.**
+<p>
+  <a href="https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml"><img src="https://github.com/KatsaounisThanasis/cloudmap/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/cloudmap/"><img src="https://img.shields.io/pypi/v/cloudmap?color=1f7a8c" alt="PyPI"></a>
+  <a href="https://pypi.org/project/cloudmap/"><img src="https://img.shields.io/pypi/pyversions/cloudmap?color=1f7a8c" alt="Python versions"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
+</p>
+
+<p>
+  <a href="#install"><b>Install</b></a> ·
+  <a href="#60-second-demo"><b>Demo</b></a> ·
+  <a href="#interactive-wizard"><b>Wizard</b></a> ·
+  <a href="#why"><b>Why</b></a> ·
+  <a href="#how-it-works"><b>How it works</b></a> ·
+  <a href="#ask-a-map-questions"><b>Ask</b></a>
+</p>
+
+</div>
+
+---
 
 Azure Resource Graph has no "dependencies" table. The relationships that matter
 - what an App Service is hosted on, which Key Vault it reads, which subnet it
@@ -15,15 +28,6 @@ integrates with, which managed identity has which role where, what a Private
 Endpoint fronts, which App Gateway routes to it - are buried inside each
 resource's `properties`. cloudmap reads them out, correlates them into one
 graph, and draws it.
-
-![The interactive HTML viewer: the seed at the centre, dependencies fanned out with native Azure icons, each edge carrying its relationship and proof](estate-viewer.png)
-
-**Contents** · [Install](#install) · [60-second demo](#60-second-demo) ·
-[Interactive wizard](#interactive-wizard) · [Why](#why) ·
-[What it maps](#what-it-maps) · [How it works](#how-it-works) ·
-[Ask a map questions](#ask-a-map-questions) · [Live Azure](#live-azure-opt-in) ·
-[Capture and scrub](#capture-a-real-export-so-the-tests-can-be-wrong) ·
-[Usage reference](#usage-reference)
 
 ## Install
 
@@ -35,12 +39,15 @@ Python 3.9+. Two runtime dependencies (`rich` and `questionary`, both for the
 terminal UI). Live mode additionally needs the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 on your PATH, and the optional AI passes need a local [ollama](https://ollama.com).
 
-To work on it instead:
+<details>
+<summary>Working on it instead</summary>
 
 ```
 git clone https://github.com/KatsaounisThanasis/cloudmap && cd cloudmap
 pip install -e ".[dev]" && pytest
 ```
+
+</details>
 
 ## 60-second demo
 
@@ -65,7 +72,12 @@ Blast radius: 9 resources (0 external), 9 dependencies
 🔗 draw.io: contoso-web.drawio
 ```
 
-On a real estate it goes several layers deep:
+That is the default **high-level** view - resources grouped by type. Add
+`--level detail` to see every instance with its real name, and on a real estate
+it goes several layers deep:
+
+<details>
+<summary>A deeper map</summary>
 
 ```text
 Blast radius: 15 resources (0 external), 14 dependencies
@@ -88,18 +100,25 @@ Blast radius: 15 resources (0 external), 14 dependencies
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-(That is the default **high-level** view - resources grouped by type. Add
-`--level detail` to see every instance with its real name.)
+</details>
 
-### Output formats
+### What you get out
 
-| Flag | You get |
+| Flag | Output |
 |---|---|
 | `-o FILE` | **draw.io** diagram with native Azure icons - open it in [draw.io](https://app.diagrams.net), the desktop app or the VS Code extension and edit it like any hand-drawn diagram |
-| `--html FILE` | **Interactive viewer**: one self-contained file, no server and no CDN. Dark mode, edges colour-coded by relationship type (security / data / network), resource-group filters and search, SVG + PNG export, and direct links into the Azure portal |
+| `--html FILE` | **Interactive viewer** - one self-contained file, no server and no CDN |
 | `--mermaid FILE` | Mermaid source, for embedding in Markdown docs |
 | `--json FILE` | The graph itself - this is what `cloudmap ask` reads |
 | `--csv FILE` | Flat edge list with evidence, for a spreadsheet or an auditor |
+
+<div align="center">
+  <img src="estate-viewer.png" alt="The interactive HTML viewer: the seed at the centre, dependencies fanned out with native Azure icons, each edge carrying its relationship and proof">
+</div>
+
+The `--html` viewer has a dark mode, edges colour-coded by relationship type
+(security / data / network), resource-group filters and search, SVG and PNG
+export, and direct links into the Azure portal.
 
 ## Interactive wizard
 
@@ -165,20 +184,6 @@ App Insights, VNets, Private Endpoints and managed identities.
 ## Ask a map questions
 
 ```
-cloudmap ask <map.json> "<question>"
-
-  --explain      also narrate the answer with a LOCAL model (ollama)
-  --llm          if no built-in rule understands the phrasing, let a LOCAL model
-                 pick the query (its choice is validated against the map)
-  --max-hops N   limit traversal depth
-  --json         print the answer as JSON (for scripting)
-```
-
-Instance names only exist in a `--level detail` map; the default high-level map
-groups by type, so ask it about a group (`"what breaks if I touch Key Vault"`) or
-trace with `--level detail` first:
-
-```
 $ cloudmap trace contoso-web --from fixtures/contoso.json --level detail --json out.json
 $ cloudmap ask out.json "what breaks if I touch contoso-kv"
 Query: impact  ·  subject: contoso-kv
@@ -204,11 +209,44 @@ cannot promote a guess to one. Every finding shows the hops behind it and the pr
 of each hop, and a finding that leans on a model-proposed edge is marked `[GUESS]`.
 If the map itself says it is incomplete, every answer from it repeats that warning.
 
-## Live Azure (opt-in)
+<details>
+<summary><b>Flags</b></summary>
+
+```
+cloudmap ask <map.json> "<question>"
+
+  --explain      also narrate the answer with a LOCAL model (ollama)
+  --llm          if no built-in rule understands the phrasing, let a LOCAL model
+                 pick the query (its choice is validated against the map)
+  --max-hops N   limit traversal depth
+  --json         print the answer as JSON (for scripting)
+```
+
+Instance names only exist in a `--level detail` map; the default high-level map
+groups by type, so ask it about a group (`"what breaks if I touch Key Vault"`) or
+trace with `--level detail` first.
+
+</details>
+
+## Live Azure
+
+Fixtures are the default. Live mode is opt-in and **not sandboxed**: `--allow-live`
+is the deliberate switch, and cloudmap reads whatever subscription `az` is pointed
+at. The read is read-only, but it is a read of live infrastructure, so point it on
+purpose. **Do not point this at data you are not authorized to read.**
 
 ```
 cloudmap trace my-app --live --allow-live
+```
 
+If a live read fails (e.g. missing RBAC), cloudmap **reports the gap** instead of
+silently dropping edges, and warns when a scan is truncated - so you know when the
+picture is incomplete.
+
+<details>
+<summary><b>Flags, enrichment and the subscription pin</b></summary>
+
+```
   --single-sub          query only the active subscription (default: every enabled
                         subscription in the tenant)
   --enrich MODE         which web apps to deep-enrich for the dependencies that only
@@ -231,22 +269,18 @@ Anything left un-enriched is reported as a **blind spot** on the map and repeate
 every `ask` answer drawn from it, so an empty result never passes for "nothing depends
 on this".
 
-Live mode is opt-in, not sandboxed: `--allow-live` is the deliberate switch, and
-cloudmap reads whatever subscription `az` is pointed at. The read is read-only, but
-it is a read of live infrastructure, so point it on purpose. As an optional guard
-against a stale `az` context silently redirecting a scan, pin the subscription you
-mean - if set, cloudmap refuses to run against any other active subscription:
+As an optional guard against a stale `az` context silently redirecting a scan, pin the
+subscription you mean - if set, cloudmap refuses to run against any other active
+subscription:
 
 ```
 export CLOUDMAP_ALLOW_SUBSCRIPTION=<subscription-id>   # optional
 ```
 
-If a live read fails (e.g. missing RBAC), cloudmap **reports the gap** instead of
-silently dropping edges, and warns when a scan is truncated - so you know when the
-picture is incomplete. Fixtures are always the default.
-**Do not point this at data you are not authorized to read.**
+</details>
 
-## Capture a real export (so the tests can be wrong)
+<details>
+<summary><b>Capture a real export (so the tests can be wrong)</b></summary>
 
 A fixture you wrote yourself can only confirm what you already believe. `capture`
 saves what Azure actually returned, scrubs it, and gives you something that can
@@ -271,7 +305,10 @@ printed, the mapping is not. **A scrubber is not a proof: read the file before y
 commit it.** `--no-scrub` exists for local debugging and writes credentials to
 disk; keep those files named `*.live.json` so `.gitignore` catches them.
 
-## Usage reference
+</details>
+
+<details>
+<summary><b>Usage reference</b></summary>
 
 ```
 cloudmap trace <name> (--from <fixture.json> | --live) [options]
@@ -291,7 +328,9 @@ cloudmap trace <name> (--from <fixture.json> | --live) [options]
   -d, --out-dir DIR          write every artifact into DIR, named after the seed
 ```
 
-Other subcommands: `cloudmap capture`, `cloudmap scrub`, `cloudmap ask` (see above).
+Other subcommands: `cloudmap capture`, `cloudmap scrub`, `cloudmap ask`.
+
+</details>
 
 ## Roadmap
 
