@@ -29,3 +29,9 @@ line-length = 180
 
 [tool.ruff.lint]
 ignore = ["E501", "E402", "F401", "BLE001", "F841", "C414", "C401", "FURB167", "RUF059", "RUF100", "FA100", "PLW1510", "S110"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0"
+]
