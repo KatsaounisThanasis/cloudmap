@@ -80,25 +80,43 @@ _TEMPLATE = r"""<!doctype html>
 <title>cloudmap</title>
 <style>
   :root{
-    --bg:#ffffff; --grid:#e8ebee; --ink:#24292f; --muted:#6e7781; --line:#d0d7de;
-    --edge:#8b939c; --elabel:#57606a; --seed:#d79b00; --accent:#0969da; --model:#cf222e;
+    --bg: #f3f6f9;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #57606a;
+    --line: #d0d7de;
+    --edge: #8c959f;
+    --elabel: #424a53;
+    --model: #cf222e;
+    --accent: #0969da;
+    --seed: #bf8700;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;font:14px/1.45 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;
-       color:var(--ink);background:var(--bg);overflow:hidden}
+  body.dark {
+    --bg: #0d1117;
+    --card: #161b22;
+    --ink: #e6edf3;
+    --muted: #7d8590;
+    --line: #30363d;
+    --edge: #8b949e;
+    --elabel: #c9d1d9;
+    --model: #ff7b72;
+    --accent: #2f81f7;
+    --seed: #e3b341;
+  }
+  * {box-sizing:border-box}
+  body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
   header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;
-         background:#fff;border-bottom:1px solid var(--line);position:relative;z-index:10}
+         background:var(--card);border-bottom:1px solid var(--line);position:relative;z-index:10}
   header h1{font-size:15px;margin:0;font-weight:600}
   header h1 b{color:var(--accent);font-weight:700}
   header h1 span{color:var(--muted);font-weight:500}
-  .search input{background:#fff;border:1px solid var(--line);color:var(--ink);
+  .search input{background:var(--card);border:1px solid var(--line);color:var(--ink);
      border-radius:6px;padding:5px 10px;width:200px;outline:none;font-size:13px}
   .search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(9,105,218,.15)}
   .badges{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-left:auto}
   .badge{font-size:11.5px;padding:3px 9px;border-radius:999px;background:#f6f8fa;
          color:var(--muted);border:1px solid var(--line)}
-  .badge.warn{background:#fff8f0;color:#bc4c00;border-color:#f3c795}
+  .badge.warn{background:var(--card)8f0;color:#bc4c00;border-color:#f3c795}
   .badge.ok{background:#f0fff4;color:#1a7f37;border-color:#a5d9b3}
   .toggles{display:flex;gap:12px;align-items:center;font-size:12px;color:var(--muted)}
   .toggles label{display:flex;gap:5px;align-items:center;cursor:pointer;user-select:none}
@@ -111,16 +129,16 @@ _TEMPLATE = r"""<!doctype html>
   .zoom{position:absolute;left:14px;bottom:14px;display:flex;flex-direction:column;
         gap:6px;z-index:6}
   .zoom button{width:32px;height:32px;border-radius:6px;border:1px solid var(--line);
-        background:#fff;color:var(--ink);font-size:16px;cursor:pointer;line-height:1}
+        background:var(--card);color:var(--ink);font-size:16px;cursor:pointer;line-height:1}
   .zoom button:hover{border-color:var(--accent);color:var(--accent)}
   .legend{position:absolute;right:14px;bottom:14px;display:flex;gap:14px;
-        background:#fff;border:1px solid var(--line);border-radius:8px;
+        background:var(--card);border:1px solid var(--line);border-radius:8px;
         padding:7px 12px;font-size:11.5px;color:var(--muted);z-index:6}
   .lg{display:inline-flex;gap:6px;align-items:center}
   .sw{width:22px;height:0;border-top:1.6px solid var(--edge)}
   .sw.model{border-top:2px dashed var(--model)}
   .sw.box{width:12px;height:12px;border:2px solid var(--seed);border-radius:3px}
-  aside{width:340px;background:#fff;border-left:1px solid var(--line);
+  aside{width:340px;background:var(--card);border-left:1px solid var(--line);background:var(--card);
         padding:18px;overflow:auto}
   aside.empty .detail{display:none}
   aside .hint{color:var(--muted)}
@@ -132,7 +150,7 @@ _TEMPLATE = r"""<!doctype html>
   .kv b{color:var(--muted);font-weight:600;min-width:66px}
   .deps{margin-top:16px}
   .deps h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 9px}
-  .dep{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:9px;background:#fff}
+  .dep{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:9px;background:var(--card)}
   .dep:hover{border-color:#9aa4af}
   .dep .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
   .dep .name{font-weight:600}
@@ -145,7 +163,7 @@ _TEMPLATE = r"""<!doctype html>
   /* graph */
   .edge path{fill:none;stroke:var(--edge);stroke-width:1.4}
   .edge .elabel{fill:var(--elabel);font-size:10.5px;paint-order:stroke;
-        stroke:#ffffff;stroke-width:3.5px;font-weight:500}
+        stroke:var(--bg);stroke-width:3.5px;font-weight:500}
   .edge.model path{stroke:var(--model);stroke-dasharray:6 5}
   .edge.model .elabel{fill:var(--model)}
   .node{cursor:pointer}
@@ -168,10 +186,13 @@ _TEMPLATE = r"""<!doctype html>
 <header>
   <h1><b>cloudmap</b> <span id="seedName"></span></h1>
   <div class="search"><input id="q" type="search" placeholder="search resources..."></div>
+  <select id="rgFilter" style="background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;"><option value="">All Resource Groups</option></select>
   <div class="toggles">
     <label><input type="checkbox" id="tModel" checked> model</label>
     <label><input type="checkbox" id="tExt" checked> external</label>
   </div>
+  <button id="btnDark" style="margin-left:auto;background:var(--card);color:var(--ink);border:1px solid var(--line);padding:5px 10px;border-radius:6px;cursor:pointer;">🌙 Dark Mode</button>
+  <button id="btnExport" style="background:var(--accent);color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:600;">⬇️ SVG</button>
   <div class="badges" id="badges"></div>
 </header>
 <div id="stage">
@@ -421,21 +442,72 @@ function showPanel(id){
 }
 svg.addEventListener("click",e=>{if(e.target===svg||e.target===vp)clearFocus();});
 
-// ---- search + toggles ----
+// ---- search + toggles + new features ----
 document.getElementById("q").addEventListener("input",e=>{
   const q=e.target.value.trim().toLowerCase();
   DATA.nodes.forEach(n=>{const hit=!q||n.name.toLowerCase().includes(q)||(n.type||"").toLowerCase().includes(q);
     nodeG[n.id]&&nodeG[n.id].classList.toggle("dim",!hit);});
 });
+const rgs = new Set(DATA.nodes.map(n=>n.rg).filter(Boolean));
+rgs.forEach(rg => {
+  const opt = document.createElement("option");
+  opt.value = opt.textContent = rg;
+  document.getElementById("rgFilter").appendChild(opt);
+});
 function applyToggles(){
   const sm=document.getElementById("tModel").checked,se=document.getElementById("tExt").checked;
-  DATA.nodes.forEach(n=>{if(n.external&&nodeG[n.id])nodeG[n.id].classList.toggle("hidden",!se);});
+  const srg = document.getElementById("rgFilter").value;
+  DATA.nodes.forEach(n=>{if(!nodeG[n.id])return;
+    const hideExt = n.external && !se;
+    const hideRg = srg && n.rg && n.rg !== srg;
+    nodeG[n.id].classList.toggle("hidden", hideExt || hideRg);
+  });
   DATA.edges.forEach((e,i)=>{if(!edgeG[i])return;
     const eh=!se&&((byId[e.source]&&byId[e.source].external)||(byId[e.target]&&byId[e.target].external));
-    edgeG[i].classList.toggle("hidden",eh||(!sm&&e.origin==="model"));});
+    const er=!srg ? false : ((byId[e.source]&&byId[e.source].rg&&byId[e.source].rg!==srg)||(byId[e.target]&&byId[e.target].rg&&byId[e.target].rg!==srg));
+    edgeG[i].classList.toggle("hidden",eh||er||(!sm&&e.origin==="model"));});
 }
 document.getElementById("tModel").addEventListener("change",applyToggles);
 document.getElementById("tExt").addEventListener("change",applyToggles);
+document.getElementById("rgFilter").addEventListener("change",applyToggles);
+
+// Dark Mode
+document.getElementById("btnDark").onclick = () => {
+  document.body.classList.toggle("dark");
+  document.getElementById("btnDark").textContent = document.body.classList.contains("dark") ? "☀️ Light Mode" : "🌙 Dark Mode";
+};
+
+// Export SVG
+document.getElementById("btnExport").onclick = () => {
+  const clone = svg.cloneNode(true);
+  // Add CSS inside the exported SVG so it renders correctly independently
+  const style = document.createElement("style");
+  style.textContent = `
+    .edge path{fill:none;stroke:#8c959f;stroke-width:1.4}
+    .edge .elabel{fill:#424a53;font-size:10.5px;font-weight:500;stroke:#ffffff;stroke-width:3.5px}
+    .edge.model path{stroke:#cf222e;stroke-dasharray:6 5}
+    .edge.model .elabel{fill:#cf222e}
+    .node .hit{fill:transparent;stroke:none;rx:8}
+    .node .ring{fill:none;stroke:none;rx:8}
+    .node.seed .ring{stroke:#bf8700;stroke-width:2.5}
+    .node .nname{fill:#1f2328;font-weight:600;font-size:12.5px;font-family:sans-serif}
+    .node .ntype{fill:#57606a;font-size:10.5px;font-family:sans-serif}
+    .node .fbox{fill:#dae8fc;stroke:#6c8ebf;stroke-width:1.4;rx:6}
+    .node.external .fbox{fill:#f6f8fa;stroke:#8c959f;stroke-dasharray:5 4}
+    .node .fbtext{fill:#1f3b57;font-weight:600;font-size:12px;font-family:sans-serif}
+    .node.external .fbtext{fill:#57606a}
+    .hidden, .dim {display:none}
+  `;
+  clone.insertBefore(style, clone.firstChild);
+  const svgData = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "cloudmap_export.svg";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
 
 fit();
 </script>
