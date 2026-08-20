@@ -164,8 +164,29 @@ _TEMPLATE = r"""<!doctype html>
   .edge path{fill:none;stroke:var(--edge);stroke-width:1.4}
   .edge .elabel{fill:var(--elabel);font-size:10.5px;paint-order:stroke;
         stroke:var(--bg);stroke-width:3.5px;font-weight:500}
-  .edge.model path{stroke:var(--model);stroke-dasharray:6 5}
-  .edge.model .elabel{fill:var(--model)}
+        
+  .edge.k-readssecret path { stroke: #d18f00; }
+  .edge.k-readssecret .elabel { fill: #b57a00; }
+  body.dark .edge.k-readssecret .elabel { fill: #eab446; }
+  
+  .edge.k-connectsto path { stroke: #1a7f37; }
+  .edge.k-connectsto .elabel { fill: #1a7f37; }
+  body.dark .edge.k-connectsto .elabel { fill: #3fb950; }
+  
+  .edge.k-authenticatesvia path { stroke: #8250df; }
+  .edge.k-authenticatesvia .elabel { fill: #8250df; }
+  body.dark .edge.k-authenticatesvia .elabel { fill: #bc8cff; }
+  
+  .edge.k-calls path { stroke: #0969da; }
+  .edge.k-calls .elabel { fill: #0969da; }
+  body.dark .edge.k-calls .elabel { fill: #58a6ff; }
+  
+  .edge.k-pullsimage path { stroke: #bc4c00; }
+  .edge.k-pullsimage .elabel { fill: #bc4c00; }
+  body.dark .edge.k-pullsimage .elabel { fill: #f78166; }
+
+  .edge.model path{stroke:var(--model) !important;stroke-dasharray:6 5}
+  .edge.model .elabel{fill:var(--model) !important}
   .node{cursor:pointer}
   .node .hit{fill:transparent;stroke:none;rx:8}
   .node:hover .hit{fill:rgba(9,105,218,.06)}
@@ -342,7 +363,8 @@ DATA.edges.forEach((e,i)=>{
   (incident[e.target]=incident[e.target]||[]).push(i);
   const a=pos[e.source],b=pos[e.target];if(!a||!b){edgeG[i]=null;return;}
   const model=e.origin==="model",gm=edgeGeom(a,b);
-  const g=el("g",{class:"edge"+(model?" model":"")});
+  const kindCls = e.kind ? " k-"+e.kind.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g,"") : "";
+  const g=el("g",{class:"edge"+(model?" model":"")+kindCls});
   g.appendChild(el("path",{d:gm.d,"marker-end":model?"url(#arrow-model)":"url(#arrow)"}));
   // the label rides its own edge (rotated along it), so labels fan out with the
   // edges instead of piling on one axis; long kinds are trimmed - full text on hover
@@ -432,6 +454,9 @@ function showPanel(id){
   panel.className="";
   const hico=DATA.icons[n.type]
     ?`<span class="hico">${DATA.icons[n.type].replace("<svg ",'<svg width="22" height="22" ')}</span>`:"";
+  const portalLink = n.id.startsWith("/subscriptions/") 
+    ? `<a href="https://portal.azure.com/#resource${n.id}" target="_blank" style="display:inline-block;margin:12px 0 4px;background:#0078d4;color:#fff;padding:6px 12px;border-radius:4px;text-decoration:none;font-weight:600;font-size:12.5px;">🔗 Open in Azure Portal</a>` 
+    : "";
   panel.querySelector(".detail").innerHTML=`
     <h2>${hico}${esc(n.name)}${n.seed?" (seed)":""}</h2>
     <div class="sub">${esc(n.type)} <span class="chip" style="background:${ci.color}">${ci.cat}</span></div>
@@ -439,6 +464,7 @@ function showPanel(id){
     ${n.location?`<div class="kv"><b>location</b><span>${esc(n.location)}</span></div>`:""}
     ${n.external?`<div class="kv"><b>status</b><span>external / unverified</span></div>`:""}
     ${n.note?`<div class="kv"><b>note</b><span>${esc(n.note)}</span></div>`:""}
+    ${portalLink}
     <div class="deps"><h3>${rows.length} connection${rows.length===1?"":"s"}</h3>${rows.join("")||'<div class="hint">no edges</div>'}</div>`;
 }
 svg.addEventListener("click",e=>{if(e.target===svg||e.target===vp)clearFocus();});

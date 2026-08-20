@@ -463,18 +463,72 @@ def _ensure_parent(path):
 
 
 def _print_summary(graph, seed, out, truncated=False, blind_spots=()):
+    try:
+        from rich.console import Console
+        from rich.tree import Tree
+        from rich.panel import Panel
+    except ImportError:
+        Console, Tree, Panel = None, None, None
+
     n = graph.nodes[seed]
     ext = sum(1 for x in graph.nodes.values() if x.external)
-    print(f"Seed: {n.name} ({n.type})")
-    print(f"Blast radius: {len(graph.nodes)} resources "
-          f"({ext} external/unverified), {len(graph.edges)} dependencies")
-    if truncated:
-        print("INCOMPLETE: scan hit the pagination cap - some resources/edges are missing.")
-    for spot in blind_spots:
-        print(f"BLIND SPOT: {spot}")
-    print(f"draw.io: {out}")
-    print()
-    for e in graph.edges:
-        tgt = graph.nodes[e.target]
-        tag = "  [external]" if tgt.external else ""
-        print(f"  {graph.nodes[e.source].name}  --{e.kind}-->  {tgt.name}{tag}")
+
+    if Console:
+        console = Console()
+        console.print(f"\n[bold green]Blast radius:[/bold green] {len(graph.nodes)} resources ({ext} external), {len(graph.edges)} dependencies")
+        if truncated:
+            console.print("[bold red]INCOMPLETE:[/bold red] scan hit the pagination cap - some resources/edges are missing.")
+        for spot in blind_spots:
+            console.print(f"[bold yellow]BLIND SPOT:[/bold yellow] {spot}")
+            
+        def _get_icon(t):
+            t = (t or "").lower()
+            if "sites" in t: return "🌐"
+            if "clusters" in t: return "☸️"
+            if "database" in t or "sql" in t or "redis" in t or "cosmos" in t: return "🗄️"
+            if "vault" in t: return "🔐"
+            return "📦"
+
+        def _build_tree(node_id, seen):
+            node = graph.nodes[node_id]
+            color = "cyan" if not node.external else "dim white"
+            txt = f"[{color}]{_get_icon(node.type)} {node.name}[/{color}]"
+            if node.external: txt += " [italic dim](external)[/italic dim]"
+            
+            tree = Tree(txt)
+            seen.add(node_id)
+            
+            for e in graph.edges:
+                if e.source == node_id:
+                    kind_color = "blue"
+                    if "secret" in e.kind: kind_color = "yellow"
+                    elif "connects" in e.kind: kind_color = "green"
+                    elif "auth" in e.kind: kind_color = "magenta"
+                    
+                    lbl = f"[{kind_color}]--{e.kind}-->[/{kind_color}]"
+                    
+                    if e.target in seen:
+                        tgt = graph.nodes[e.target]
+                        tree.add(f"{lbl} [dim]{tgt.name} (cycle)[/dim]")
+                    else:
+                        branch = _build_tree(e.target, set(seen))
+                        branch.label = f"{lbl} " + str(branch.label)
+                        tree.add(branch)
+            return tree
+
+        tree = _build_tree(seed, set())
+        console.print(Panel(tree, title="Dependency Graph", border_style="blue"))
+        console.print(f"🔗 [bold]draw.io:[/bold] {out}\n")
+    else:
+        print(f"Seed: {n.name} ({n.type})")
+        print(f"Blast radius: {len(graph.nodes)} resources "
+              f"({ext} external/unverified), {len(graph.edges)} dependencies")
+        if truncated:
+            print("INCOMPLETE: scan hit the pagination cap - some resources/edges are missing.")
+        for spot in blind_spots:
+            print(f"BLIND SPOT: {spot}")
+        print(f"draw.io: {out}\n")
+        for e in graph.edges:
+            tgt = graph.nodes[e.target]
+            tag = "  [external]" if tgt.external else ""
+            print(f"  {graph.nodes[e.source].name}  --{e.kind}-->  {tgt.name}{tag}")
