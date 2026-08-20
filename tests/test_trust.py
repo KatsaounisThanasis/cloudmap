@@ -242,22 +242,22 @@ def test_ml_workspace_maps_its_backing_platform():
     # even scanned, so a workspace could not be traced at all.
     from cloudmap.graph import build_graph
 
-    S = "/subscriptions/s/resourceGroups/rg/providers"
-    ws = {"id": f"{S}/Microsoft.MachineLearningServices/workspaces/ws", "name": "ws",
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    ws = {"id": f"{S}/microsoft.machinelearningservices/workspaces/ws", "name": "ws",
           "type": "microsoft.machinelearningservices/workspaces",
           "properties": {
-              "storageAccount": f"{S}/Microsoft.Storage/storageAccounts/st",
-              "keyVault": f"{S}/Microsoft.KeyVault/vaults/kv",
-              "applicationInsights": f"{S}/Microsoft.Insights/components/ai",
-              "containerRegistry": f"{S}/Microsoft.ContainerRegistry/registries/acr"}}
+              "storageAccount": f"{S}/microsoft.storage/storageAccounts/st",
+              "keyVault": f"{S}/microsoft.keyvault/vaults/kv",
+              "applicationInsights": f"{S}/microsoft.insights/components/ai",
+              "containerRegistry": f"{S}/microsoft.containerregistry/registries/acr"}}
     backing = [
-        {"id": f"{S}/Microsoft.Storage/storageAccounts/st", "name": "st",
+        {"id": f"{S}/microsoft.storage/storageAccounts/st", "name": "st",
          "type": "microsoft.storage/storageaccounts"},
-        {"id": f"{S}/Microsoft.KeyVault/vaults/kv", "name": "kv",
+        {"id": f"{S}/microsoft.keyvault/vaults/kv", "name": "kv",
          "type": "microsoft.keyvault/vaults"},
-        {"id": f"{S}/Microsoft.Insights/components/ai", "name": "ai",
+        {"id": f"{S}/microsoft.insights/components/ai", "name": "ai",
          "type": "microsoft.insights/components"},
-        {"id": f"{S}/Microsoft.ContainerRegistry/registries/acr", "name": "acr",
+        {"id": f"{S}/microsoft.containerregistry/registries/acr", "name": "acr",
          "type": "microsoft.containerregistry/registries"},
     ]
     edges = build_graph([ws, *backing]).edges
@@ -274,10 +274,10 @@ def test_generic_arm_reference_maps_any_type():
     # property path as proof. This is what lets cloudmap map anything.
     from cloudmap.graph import build_graph
 
-    S = "/subscriptions/s/resourceGroups/rg/providers"
-    thing = {"id": f"{S}/Microsoft.Some/thing/x", "name": "x", "type": "microsoft.some/thing",
-             "properties": {"deep": {"nested": {"targetId": f"{S}/Microsoft.KeyVault/vaults/kv"}}}}
-    kv = {"id": f"{S}/Microsoft.KeyVault/vaults/kv", "name": "kv", "type": "microsoft.keyvault/vaults"}
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    thing = {"id": f"{S}/microsoft.some/thing/x", "name": "x", "type": "microsoft.some/thing",
+             "properties": {"deep": {"nested": {"targetId": f"{S}/microsoft.keyvault/vaults/kv"}}}}
+    kv = {"id": f"{S}/microsoft.keyvault/vaults/kv", "name": "kv", "type": "microsoft.keyvault/vaults"}
     edges = [e for e in build_graph([thing, kv]).edges
              if e.source == thing["id"] and e.target == kv["id"]]
 
@@ -291,10 +291,10 @@ def test_generic_pass_does_not_shadow_a_semantic_edge():
     # not append a redundant 'references'.
     from cloudmap.graph import build_graph
 
-    S = "/subscriptions/s/resourceGroups/rg/providers"
-    web = {"id": f"{S}/Microsoft.Web/sites/w", "name": "w", "type": "microsoft.web/sites",
-           "properties": {"serverFarmId": f"{S}/Microsoft.Web/serverfarms/p"}}
-    plan = {"id": f"{S}/Microsoft.Web/serverfarms/p", "name": "p",
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    web = {"id": f"{S}/microsoft.web/sites/w", "name": "w", "type": "microsoft.web/sites",
+           "properties": {"serverFarmId": f"{S}/microsoft.web/serverfarms/p"}}
+    plan = {"id": f"{S}/microsoft.web/serverfarms/p", "name": "p",
             "type": "microsoft.web/serverfarms"}
     kinds = [e.kind for e in build_graph([web, plan]).edges
              if e.source == web["id"] and e.target == plan["id"]]
@@ -308,7 +308,7 @@ def test_monitoring_observers_are_not_generic_dependencies():
     # blast-radius map (same principle as a read-only RBAC role).
     from cloudmap.graph import build_graph
 
-    S = "/subscriptions/s/resourceGroups/rg/providers"
+    S = "/subscriptions/s/resourcegroups/rg/providers"
     aks = {"id": f"{S}/Microsoft.ContainerService/managedClusters/c", "name": "c",
            "type": "microsoft.containerservice/managedclusters"}
     rule = {"id": f"{S}/Microsoft.AlertsManagement/prometheusRuleGroups/r", "name": "r",

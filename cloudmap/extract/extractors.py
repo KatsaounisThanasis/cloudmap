@@ -470,7 +470,7 @@ def _config_edges(n, values, r, add, label="app config"):
             add(n.id, r.by_ik[word], "sends-telemetry", f"{label} contains instrumentation key")
 
     # Storage accounts are often in connection strings: accountname=xyz
-    for m in re.finditer(r"accountname=([a-z0-9]+)", blob):
+    for m in re.finditer(r"accountname=([a-z0-9-]+)", blob):
         acct = m.group(1)
         if acct in r.storage_by_name:
             add(n.id, r.storage_by_name[acct], "connects-to", f"{label} references accountname={acct}")

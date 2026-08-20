@@ -37,7 +37,7 @@ def _record_commands(monkeypatch, stdout="{}"):
     """Replace the subprocess boundary and collect the argv of every `az` call."""
     seen = []
 
-    def run(cmd, capture_output=True, text=True):
+    def run(cmd, capture_output=True, text=True, **kwargs):
         seen.append(list(cmd))
         return _FakeProc(stdout)
 

@@ -15,15 +15,15 @@ import pytest
 from cloudmap.adapters import AzureAdapter, load_graph
 from cloudmap.graph import blast_radius, build_graph, find_seeds
 
-S = "/subscriptions/s/resourceGroups/rg/providers"
+S = "/subscriptions/s/resourcegroups/rg/providers"
 
 
 def test_null_columns_in_a_row_fall_back_to_empty_values():
     # ARG projects every requested column, so an unset one arrives as null.
-    graph = build_graph([{"id": f"{S}/Microsoft.Web/sites/web", "name": None, "type": None,
+    graph = build_graph([{"id": f"{S}/microsoft.web/sites/web", "name": None, "type": None,
                           "resourceGroup": None, "subscriptionId": None, "location": None,
                           "kind": None, "identity": None, "properties": None, "tags": None}])
-    node = graph.nodes[f"{S}/Microsoft.Web/sites/web"]
+    node = graph.nodes[f"{S}/microsoft.web/sites/web"]
 
     assert node.name == "web"               # falls back to the last id segment
     assert (node.type, node.resource_group, node.subscription) == ("", "", "")
@@ -32,9 +32,9 @@ def test_null_columns_in_a_row_fall_back_to_empty_values():
 
 def test_a_row_with_null_properties_yields_no_edges_instead_of_crashing():
     graph = build_graph([
-        {"id": f"{S}/Microsoft.Web/sites/web", "name": "web", "type": "microsoft.web/sites",
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
          "properties": None},
-        {"id": f"{S}/Microsoft.KeyVault/vaults/kv", "name": "kv",
+        {"id": f"{S}/microsoft.keyvault/vaults/kv", "name": "kv",
          "type": "microsoft.keyvault/vaults", "properties": None},
     ])
 
@@ -46,7 +46,7 @@ def test_a_role_assignment_with_null_properties_contributes_no_edge():
     # Role assignments are read for their principal/scope; a null body is unusable
     # and must be ignored rather than fabricate an access path.
     graph = build_graph([
-        {"id": f"{S}/Microsoft.KeyVault/vaults/kv", "name": "kv",
+        {"id": f"{S}/microsoft.keyvault/vaults/kv", "name": "kv",
          "type": "microsoft.keyvault/vaults"},
         {"id": "/ra", "name": "ra", "type": "microsoft.authorization/roleassignments",
          "properties": None},
@@ -57,7 +57,7 @@ def test_a_role_assignment_with_null_properties_contributes_no_edge():
 
 def test_app_settings_with_null_names_and_values_are_skipped():
     graph = build_graph([
-        {"id": f"{S}/Microsoft.Web/sites/web", "name": "web", "type": "microsoft.web/sites",
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
          "properties": {"siteConfig": {"appSettings": [{"name": None, "value": None},
                                                        {"name": "EMPTY"}]}}},
     ])
@@ -67,10 +67,10 @@ def test_app_settings_with_null_names_and_values_are_skipped():
 
 def test_rows_without_an_id_are_skipped_rather_than_keyed_on_nothing():
     graph = build_graph([{"name": "orphan", "type": "microsoft.web/sites"},
-                         {"id": f"{S}/Microsoft.Web/sites/web", "name": "web",
+                         {"id": f"{S}/microsoft.web/sites/web", "name": "web",
                           "type": "microsoft.web/sites"}])
 
-    assert list(graph.nodes) == [f"{S}/Microsoft.Web/sites/web"]
+    assert list(graph.nodes) == [f"{S}/microsoft.web/sites/web"]
 
 
 def test_an_empty_result_set_builds_an_empty_graph():
@@ -81,9 +81,9 @@ def test_an_empty_result_set_builds_an_empty_graph():
 
 
 def test_a_repeated_row_does_not_duplicate_its_node_or_its_edges():
-    web = {"id": f"{S}/Microsoft.Web/sites/web", "name": "web", "type": "microsoft.web/sites",
-           "properties": {"serverFarmId": f"{S}/Microsoft.Web/serverfarms/plan"}}
-    plan = {"id": f"{S}/Microsoft.Web/serverfarms/plan", "name": "plan",
+    web = {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
+           "properties": {"serverFarmId": f"{S}/microsoft.web/serverfarms/plan"}}
+    plan = {"id": f"{S}/microsoft.web/serverfarms/plan", "name": "plan",
             "type": "microsoft.web/serverfarms", "properties": {}}
     graph = build_graph([web, plan, dict(web), dict(plan)])
 
@@ -92,22 +92,22 @@ def test_a_repeated_row_does_not_duplicate_its_node_or_its_edges():
 
 
 def test_an_export_whose_type_casing_comes_from_the_portal_is_still_recognised():
-    # Raw exports carry mixed-case types ("Microsoft.Web/sites"); the adapter has
+    # Raw exports carry mixed-case types ("microsoft.web/sites"); the adapter has
     # to claim them, and the node type is normalised to lower case.
-    data = {"data": [{"id": f"{S}/Microsoft.Web/sites/web", "name": "web",
-                      "type": "Microsoft.Web/sites", "properties": {}}]}
+    data = {"data": [{"id": f"{S}/microsoft.web/sites/web", "name": "web",
+                      "type": "microsoft.web/sites", "properties": {}}]}
 
     assert AzureAdapter.matches(data) is True
-    assert AzureAdapter.to_graph(data).nodes[f"{S}/Microsoft.Web/sites/web"].type \
+    assert AzureAdapter.to_graph(data).nodes[f"{S}/microsoft.web/sites/web"].type \
         == "microsoft.web/sites"
 
 
 def _two_apps_with_the_same_name():
     """The real situation the wizard hit: one name, two resource groups."""
     return [
-        {"id": "/subscriptions/s/resourceGroups/rg1/providers/Microsoft.Web/sites/app",
+        {"id": "/subscriptions/s/resourcegroups/rg1/providers/microsoft.web/sites/app",
          "name": "app", "type": "microsoft.web/sites", "resourceGroup": "rg1"},
-        {"id": "/subscriptions/s/resourceGroups/rg2/providers/Microsoft.Web/sites/app",
+        {"id": "/subscriptions/s/resourcegroups/rg2/providers/microsoft.web/sites/app",
          "name": "app", "type": "microsoft.web/sites", "resourceGroup": "rg2"},
     ]
 
@@ -135,19 +135,19 @@ def test_an_arm_id_copied_from_the_portal_matches_case_insensitively():
 
 
 def test_a_name_substring_still_matches_when_nothing_is_exact():
-    graph = build_graph([{"id": f"{S}/Microsoft.Web/sites/webapp-orders-dev",
+    graph = build_graph([{"id": f"{S}/microsoft.web/sites/webapp-orders-dev",
                           "name": "webapp-orders-dev", "type": "microsoft.web/sites"}])
 
-    assert find_seeds(graph, "orders") == [f"{S}/Microsoft.Web/sites/webapp-orders-dev"]
+    assert find_seeds(graph, "orders") == [f"{S}/microsoft.web/sites/webapp-orders-dev"]
 
 
 def test_an_exact_name_wins_over_a_longer_name_that_contains_it():
-    graph = build_graph([{"id": f"{S}/Microsoft.Web/sites/api", "name": "api",
+    graph = build_graph([{"id": f"{S}/microsoft.web/sites/api", "name": "api",
                           "type": "microsoft.web/sites"},
-                         {"id": f"{S}/Microsoft.Web/sites/api-legacy", "name": "api-legacy",
+                         {"id": f"{S}/microsoft.web/sites/api-legacy", "name": "api-legacy",
                           "type": "microsoft.web/sites"}])
 
-    assert find_seeds(graph, "api") == [f"{S}/Microsoft.Web/sites/api"]
+    assert find_seeds(graph, "api") == [f"{S}/microsoft.web/sites/api"]
 
 
 def test_a_neutral_graph_json_is_reloaded_without_re_extracting(tmp_path):
@@ -170,10 +170,10 @@ def test_a_neutral_graph_json_is_reloaded_without_re_extracting(tmp_path):
                                        "strings resolve to the server, so the wizard offers a "
                                        "seed type that can only ever produce an empty map")
 def test_a_sql_database_seed_reaches_its_server_and_its_consumer():
-    server = f"{S}/Microsoft.Sql/servers/sqlsrv"
+    server = f"{S}/microsoft.sql/servers/sqlsrv"
     database = f"{server}/databases/orders"
     graph = build_graph([
-        {"id": f"{S}/Microsoft.Web/sites/web", "name": "web", "type": "microsoft.web/sites",
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
          "properties": {"siteConfig": {"appSettings": [
              {"name": "CONN",
               "value": "Server=tcp:sqlsrv.database.windows.net,1433;Database=orders;"}]}}},

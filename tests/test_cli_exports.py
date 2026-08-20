@@ -44,7 +44,7 @@ def test_a_trace_writes_every_artifact_that_was_asked_for(tmp_path):
 
     assert rc == 0
     assert ET.parse(tmp_path / "map.drawio").getroot().tag == "mxfile"
-    assert json.loads((tmp_path / "map.json").read_text(encoding="utf-8"))["seed"] == SEED_ID
+    assert json.loads((tmp_path / "map.json").read_text(encoding="utf-8"))["seed"] == SEED_ID.lower()
     assert (tmp_path / "map.mmd").read_text(encoding="utf-8").startswith("graph LR")
     assert "<html" in (tmp_path / "map.html").read_text(encoding="utf-8").lower()
 
