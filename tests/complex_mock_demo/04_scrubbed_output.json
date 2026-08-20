@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "scrubbed": true
+  },
+  "data": [
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-1/providers/Microsoft.Web/sites/app-1",
+      "name": "app-1",
+      "type": "microsoft.web/sites",
+      "location": "westeurope",
+      "resourceGroup": "rg-1",
+      "properties": {
+        "defaultHostName": "app-1.azurewebsites.net",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "BACKEND_API",
+              "value": "https://app-2.azurewebsites.net"
+            },
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "00000002-0000-0000-0000-000000000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-1/providers/Microsoft.Web/sites/app-2",
+      "name": "app-2",
+      "type": "microsoft.web/sites",
+      "location": "westeurope",
+      "resourceGroup": "rg-1",
+      "properties": {
+        "defaultHostName": "app-2.azurewebsites.net",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "DB_CONNECTION",
+              "value": "Server=tcp:sql-1.database.windows.net;Database=db1;User ID=admin;Password=REDACTED;"
+            },
+            {
+              "name": "KV_SECRET",
+              "value": "@Microsoft.KeyVault(SecretUri=https://kv-1.vault.azure.net/secrets/mysecret/)"
+            },
+            {
+              "name": "REDIS",
+              "value": "redis-1.redis.cache.windows.net,password=REDACTED"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-1/providers/Microsoft.Sql/servers/sql-1",
+      "name": "sql-1",
+      "type": "microsoft.sql/servers",
+      "location": "westeurope",
+      "resourceGroup": "rg-1",
+      "properties": {
+        "fullyQualifiedDomainName": "sql-1.database.windows.net"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-1/providers/Microsoft.Cache/Redis/redis-1",
+      "name": "redis-1",
+      "type": "microsoft.cache/redis",
+      "location": "westeurope",
+      "resourceGroup": "rg-1",
+      "properties": {
+        "hostName": "redis-1.redis.cache.windows.net"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-1/providers/Microsoft.KeyVault/vaults/kv-1",
+      "name": "kv-1",
+      "type": "microsoft.keyvault/vaults",
+      "location": "westeurope",
+      "resourceGroup": "rg-1",
+      "properties": {
+        "vaultUri": "https://kv-1.vault.azure.net/"
+      }
+    }
+  ]
+}

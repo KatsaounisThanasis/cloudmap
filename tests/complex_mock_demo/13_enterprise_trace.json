@@ -1,0 +1,263 @@
+{
+  "seed": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-spa-frontend",
+  "meta": {
+    "complete": true,
+    "truncated": false,
+    "read_gaps": [],
+    "blind_spots": [],
+    "external_unverified": 0,
+    "model_edges": 0
+  },
+  "nodes": [
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-spa-frontend",
+      "name": "app-spa-frontend",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "",
+      "location": "westeurope",
+      "hops": 0,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-api-gateway",
+      "name": "app-api-gateway",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "",
+      "location": "westeurope",
+      "hops": 1,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-auth-service",
+      "name": "app-auth-service",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "",
+      "location": "westeurope",
+      "hops": 1,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-inventory-api",
+      "name": "app-inventory-api",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "",
+      "location": "westeurope",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-orders-api",
+      "name": "app-orders-api",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "",
+      "location": "westeurope",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.app/containerapps/capp-payment-service",
+      "name": "capp-payment-service",
+      "type": "microsoft.app/containerapps",
+      "resourceGroup": "",
+      "location": "westeurope",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.cache/redis/redis-gateway",
+      "name": "redis-gateway",
+      "type": "microsoft.cache/redis",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.keyvault/vaults/kv-core-prod",
+      "name": "kv-core-prod",
+      "type": "microsoft.keyvault/vaults",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.documentdb/databaseaccounts/cosmos-auth",
+      "name": "cosmos-auth",
+      "type": "microsoft.documentdb/databaseaccounts",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.dbforpostgresql/flexibleservers/pg-inventory-prod",
+      "name": "pg-inventory-prod",
+      "type": "microsoft.dbforpostgresql/flexibleservers",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 3,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.storage/storageaccounts/stinventoryprod",
+      "name": "stinventoryprod",
+      "type": "microsoft.storage/storageaccounts",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 3,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.servicebus/namespaces/sb-enterprise",
+      "name": "sb-enterprise",
+      "type": "microsoft.servicebus/namespaces",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 3,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.cache/redis/redis-orders",
+      "name": "redis-orders",
+      "type": "microsoft.cache/redis",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 3,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.sql/servers/sql-orders-prod",
+      "name": "sql-orders-prod",
+      "type": "microsoft.sql/servers",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 3,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.keyvault/vaults/kv-payments-prod",
+      "name": "kv-payments-prod",
+      "type": "microsoft.keyvault/vaults",
+      "resourceGroup": "",
+      "location": "",
+      "hops": 3,
+      "external": false,
+      "note": ""
+    }
+  ],
+  "edges": [
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-spa-frontend",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-api-gateway",
+      "kind": "calls",
+      "origin": "extracted",
+      "evidence": "app config references host app-api-gateway.azurewebsites.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-spa-frontend",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-auth-service",
+      "kind": "calls",
+      "origin": "extracted",
+      "evidence": "app config references host app-auth-service.azurewebsites.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-api-gateway",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-inventory-api",
+      "kind": "calls",
+      "origin": "extracted",
+      "evidence": "app config references host app-inventory-api.azurewebsites.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-api-gateway",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-orders-api",
+      "kind": "calls",
+      "origin": "extracted",
+      "evidence": "app config references host app-orders-api.azurewebsites.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-api-gateway",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.app/containerapps/capp-payment-service",
+      "kind": "calls",
+      "origin": "extracted",
+      "evidence": "app config references host capp-payment-service.azurecontainerapps.io"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-api-gateway",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.cache/redis/redis-gateway",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host redis-gateway.redis.cache.windows.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-auth-service",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.keyvault/vaults/kv-core-prod",
+      "kind": "reads-secret",
+      "origin": "extracted",
+      "evidence": "app config references host kv-core-prod.vault.azure.net; Key Vault reference to vault kv-core-prod"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-auth-service",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.documentdb/databaseaccounts/cosmos-auth",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host cosmos-auth.documents.azure.com"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-orders-api",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.servicebus/namespaces/sb-enterprise",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host sb-enterprise.servicebus.windows.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-orders-api",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.cache/redis/redis-orders",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host redis-orders.redis.cache.windows.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-orders-api",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.sql/servers/sql-orders-prod",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host sql-orders-prod.database.windows.net"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-inventory-api",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.dbforpostgresql/flexibleservers/pg-inventory-prod",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host pg-inventory-prod.postgres.database.azure.com"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.web/sites/app-inventory-api",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.storage/storageaccounts/stinventoryprod",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references accountname=stinventoryprod"
+    },
+    {
+      "source": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.app/containerapps/capp-payment-service",
+      "target": "/subscriptions/99999999-9999-9999-9999-999999999999/resourcegroups/rg-enterprise-prod/providers/microsoft.keyvault/vaults/kv-payments-prod",
+      "kind": "reads-secret",
+      "origin": "extracted",
+      "evidence": "configuration.secrets[].keyVaultUrl vault kv-payments-prod; container env references host kv-payments-prod.vault.azure.net"
+    }
+  ]
+}

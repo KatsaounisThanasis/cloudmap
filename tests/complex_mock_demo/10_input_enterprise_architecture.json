@@ -1,0 +1,294 @@
+[
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Network/frontdoors/fd-global-routing",
+    "name": "fd-global-routing",
+    "type": "microsoft.network/frontdoors",
+    "location": "global",
+    "properties": {}
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-spa-frontend",
+    "name": "app-spa-frontend",
+    "type": "microsoft.web/sites",
+    "location": "westeurope",
+    "properties": {
+      "defaultHostName": "app-spa-frontend.azurewebsites.net",
+      "siteConfig": {
+        "appSettings": [
+          {
+            "name": "API_URL",
+            "value": "https://app-api-gateway.azurewebsites.net"
+          },
+          {
+            "name": "AUTH_URL",
+            "value": "https://app-auth-service.azurewebsites.net"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-api-gateway",
+    "name": "app-api-gateway",
+    "type": "microsoft.web/sites",
+    "location": "westeurope",
+    "properties": {
+      "defaultHostName": "app-api-gateway.azurewebsites.net",
+      "siteConfig": {
+        "appSettings": [
+          {
+            "name": "ORDERS_API",
+            "value": "https://app-orders-api.azurewebsites.net"
+          },
+          {
+            "name": "INVENTORY_API",
+            "value": "https://app-inventory-api.azurewebsites.net"
+          },
+          {
+            "name": "PAYMENT_API",
+            "value": "https://capp-payment-service.azurecontainerapps.io"
+          },
+          {
+            "name": "RATE_LIMIT_REDIS",
+            "value": "redis-gateway.redis.cache.windows.net,password=GatewayRedisSecret!"
+          },
+          {
+            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+            "value": "00000000-0000-0000-0000-000000000000"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-auth-service",
+    "name": "app-auth-service",
+    "type": "microsoft.web/sites",
+    "location": "westeurope",
+    "properties": {
+      "defaultHostName": "app-auth-service.azurewebsites.net",
+      "siteConfig": {
+        "appSettings": [
+          {
+            "name": "COSMOS_DB",
+            "value": "AccountEndpoint=https://cosmos-auth.documents.azure.com:443/;AccountKey=AuthSecretKey123=="
+          },
+          {
+            "name": "ENTRA_TENANT",
+            "value": "https://login.microsoftonline.com/tenant-id"
+          },
+          {
+            "name": "JWT_SECRET",
+            "value": "@Microsoft.KeyVault(SecretUri=https://kv-core-prod.vault.azure.net/secrets/jwt-secret/)"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-orders-api",
+    "name": "app-orders-api",
+    "type": "microsoft.web/sites",
+    "location": "westeurope",
+    "properties": {
+      "defaultHostName": "app-orders-api.azurewebsites.net",
+      "siteConfig": {
+        "connectionStrings": [
+          {
+            "name": "SqlDB",
+            "connectionString": "Server=tcp:sql-orders-prod.database.windows.net;Database=orders;User ID=sa;Password=SqlPassw0rd!"
+          }
+        ],
+        "appSettings": [
+          {
+            "name": "SERVICE_BUS",
+            "value": "Endpoint=sb://sb-enterprise.servicebus.windows.net/;SharedAccessKeyName=Root;SharedAccessKey=BusKey123="
+          },
+          {
+            "name": "CACHE",
+            "value": "redis-orders.redis.cache.windows.net,password=RedisKey123"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-inventory-api",
+    "name": "app-inventory-api",
+    "type": "microsoft.web/sites",
+    "location": "westeurope",
+    "properties": {
+      "defaultHostName": "app-inventory-api.azurewebsites.net",
+      "siteConfig": {
+        "appSettings": [
+          {
+            "name": "PG_DB",
+            "value": "Host=pg-inventory-prod.postgres.database.azure.com;Username=admin;Password=PgPassword!"
+          },
+          {
+            "name": "BLOB_STORAGE",
+            "value": "DefaultEndpointsProtocol=https;AccountName=stinventoryprod;AccountKey=StorageKey=="
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.App/containerApps/capp-payment-service",
+    "name": "capp-payment-service",
+    "type": "microsoft.app/containerapps",
+    "location": "westeurope",
+    "properties": {
+      "configuration": {
+        "ingress": {
+          "fqdn": "capp-payment-service.azurecontainerapps.io"
+        },
+        "secrets": [
+          {
+            "name": "stripe-key",
+            "keyVaultUrl": "https://kv-payments-prod.vault.azure.net/secrets/stripe/"
+          }
+        ]
+      },
+      "template": {
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "EVENT_HUB",
+                "value": "Endpoint=sb://eh-transactions.servicebus.windows.net/;SharedAccessKey=123="
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.App/containerApps/capp-worker-notifications",
+    "name": "capp-worker-notifications",
+    "type": "microsoft.app/containerapps",
+    "location": "westeurope",
+    "properties": {
+      "configuration": {
+        "ingress": {
+          "fqdn": "capp-worker-notifications.azurecontainerapps.io"
+        }
+      },
+      "template": {
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "SERVICE_BUS",
+                "value": "Endpoint=sb://sb-enterprise.servicebus.windows.net/;SharedAccessKeyName=Root"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.ContainerService/managedClusters/aks-core-services",
+    "name": "aks-core-services",
+    "type": "microsoft.containerservice/managedclusters",
+    "location": "westeurope",
+    "properties": {
+      "fqdn": "aks-core.hcp.westeurope.azmk8s.io"
+    },
+    "kubernetes_text": "image: acrcoreprod.azurecr.io/ai-service:v2\ncm:OPENAI_ENDPOINT=https://openai-enterprise.openai.azure.com/\nsec_decoded:DB_PASS=AksSecretDb!\ncm:QUEUE_URL=https://stqueueprod.queue.core.windows.net"
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Sql/servers/sql-orders-prod",
+    "name": "sql-orders-prod",
+    "type": "microsoft.sql/servers",
+    "properties": {
+      "fullyQualifiedDomainName": "sql-orders-prod.database.windows.net"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-inventory-prod",
+    "name": "pg-inventory-prod",
+    "type": "microsoft.dbforpostgresql/flexibleservers",
+    "properties": {
+      "fullyQualifiedDomainName": "pg-inventory-prod.postgres.database.azure.com"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-auth",
+    "name": "cosmos-auth",
+    "type": "microsoft.documentdb/databaseaccounts",
+    "properties": {
+      "documentEndpoint": "https://cosmos-auth.documents.azure.com:443/"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Cache/Redis/redis-gateway",
+    "name": "redis-gateway",
+    "type": "microsoft.cache/redis",
+    "properties": {
+      "hostName": "redis-gateway.redis.cache.windows.net"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Cache/Redis/redis-orders",
+    "name": "redis-orders",
+    "type": "microsoft.cache/redis",
+    "properties": {
+      "hostName": "redis-orders.redis.cache.windows.net"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Storage/storageAccounts/stinventoryprod",
+    "name": "stinventoryprod",
+    "type": "microsoft.storage/storageaccounts",
+    "properties": {
+      "primaryEndpoints": {
+        "blob": "https://stinventoryprod.blob.core.windows.net/"
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.Storage/storageAccounts/stqueueprod",
+    "name": "stqueueprod",
+    "type": "microsoft.storage/storageaccounts",
+    "properties": {
+      "primaryEndpoints": {
+        "queue": "https://stqueueprod.queue.core.windows.net/"
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.ServiceBus/namespaces/sb-enterprise",
+    "name": "sb-enterprise",
+    "type": "microsoft.servicebus/namespaces",
+    "properties": {
+      "serviceBusEndpoint": "https://sb-enterprise.servicebus.windows.net/"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.EventHub/namespaces/eh-transactions",
+    "name": "eh-transactions",
+    "type": "microsoft.eventhub/namespaces",
+    "properties": {
+      "serviceBusEndpoint": "https://eh-transactions.servicebus.windows.net/"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.KeyVault/vaults/kv-core-prod",
+    "name": "kv-core-prod",
+    "type": "microsoft.keyvault/vaults",
+    "properties": {
+      "vaultUri": "https://kv-core-prod.vault.azure.net/"
+    }
+  },
+  {
+    "id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/rg-enterprise-prod/providers/Microsoft.KeyVault/vaults/kv-payments-prod",
+    "name": "kv-payments-prod",
+    "type": "microsoft.keyvault/vaults",
+    "properties": {
+      "vaultUri": "https://kv-payments-prod.vault.azure.net/"
+    }
+  }
+]

@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cloudmap</title>
+<style>
+  :root{
+    --bg:#ffffff; --grid:#e8ebee; --ink:#24292f; --muted:#6e7781; --line:#d0d7de;
+    --edge:#8b939c; --elabel:#57606a; --seed:#d79b00; --accent:#0969da; --model:#cf222e;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.45 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;
+       color:var(--ink);background:var(--bg);overflow:hidden}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;
+         background:#fff;border-bottom:1px solid var(--line);position:relative;z-index:10}
+  header h1{font-size:15px;margin:0;font-weight:600}
+  header h1 b{color:var(--accent);font-weight:700}
+  header h1 span{color:var(--muted);font-weight:500}
+  .search input{background:#fff;border:1px solid var(--line);color:var(--ink);
+     border-radius:6px;padding:5px 10px;width:200px;outline:none;font-size:13px}
+  .search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(9,105,218,.15)}
+  .badges{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-left:auto}
+  .badge{font-size:11.5px;padding:3px 9px;border-radius:999px;background:#f6f8fa;
+         color:var(--muted);border:1px solid var(--line)}
+  .badge.warn{background:#fff8f0;color:#bc4c00;border-color:#f3c795}
+  .badge.ok{background:#f0fff4;color:#1a7f37;border-color:#a5d9b3}
+  .toggles{display:flex;gap:12px;align-items:center;font-size:12px;color:var(--muted)}
+  .toggles label{display:flex;gap:5px;align-items:center;cursor:pointer;user-select:none}
+  #stage{display:flex;height:calc(100vh - 47px)}
+  #wrap{flex:1;position:relative;overflow:hidden;
+        background-image:radial-gradient(var(--grid) 1px,transparent 1px);
+        background-size:16px 16px}
+  #graph{width:100%;height:100%;cursor:grab;touch-action:none}
+  #graph.grabbing{cursor:grabbing}
+  .zoom{position:absolute;left:14px;bottom:14px;display:flex;flex-direction:column;
+        gap:6px;z-index:6}
+  .zoom button{width:32px;height:32px;border-radius:6px;border:1px solid var(--line);
+        background:#fff;color:var(--ink);font-size:16px;cursor:pointer;line-height:1}
+  .zoom button:hover{border-color:var(--accent);color:var(--accent)}
+  .legend{position:absolute;right:14px;bottom:14px;display:flex;gap:14px;
+        background:#fff;border:1px solid var(--line);border-radius:8px;
+        padding:7px 12px;font-size:11.5px;color:var(--muted);z-index:6}
+  .lg{display:inline-flex;gap:6px;align-items:center}
+  .sw{width:22px;height:0;border-top:1.6px solid var(--edge)}
+  .sw.model{border-top:2px dashed var(--model)}
+  .sw.box{width:12px;height:12px;border:2px solid var(--seed);border-radius:3px}
+  aside{width:340px;background:#fff;border-left:1px solid var(--line);
+        padding:18px;overflow:auto}
+  aside.empty .detail{display:none}
+  aside .hint{color:var(--muted)}
+  aside h2{font-size:15px;margin:0 0 3px;display:flex;align-items:center;gap:8px}
+  aside h2 .hico{width:22px;height:22px;flex:none}
+  aside .sub{color:var(--muted);font-size:12px;margin-bottom:14px;word-break:break-all}
+  .chip{font-size:10.5px;padding:2px 8px;border-radius:999px;color:#fff;font-weight:600}
+  .kv{display:flex;gap:8px;font-size:12.5px;margin:3px 0}
+  .kv b{color:var(--muted);font-weight:600;min-width:66px}
+  .deps{margin-top:16px}
+  .deps h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 9px}
+  .dep{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:9px;background:#fff}
+  .dep:hover{border-color:#9aa4af}
+  .dep .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .dep .name{font-weight:600}
+  .dep .kind{color:#454f59;font-size:12px;margin-top:2px}
+  .dep .ev{color:var(--muted);font-size:11px;margin-top:5px;font-style:italic}
+  .arrow{color:var(--muted);font-size:11px}
+  .tag{font-size:10px;padding:1px 8px;border-radius:999px;white-space:nowrap;font-weight:600}
+  .tag.verified{background:#ddf4ff;color:#0969da}
+  .tag.model{background:#ffebe9;color:#cf222e}
+  /* graph */
+  .edge path{fill:none;stroke:var(--edge);stroke-width:1.4}
+  .edge .elabel{fill:var(--elabel);font-size:10.5px;paint-order:stroke;
+        stroke:#ffffff;stroke-width:3.5px;font-weight:500}
+  .edge.model path{stroke:var(--model);stroke-dasharray:6 5}
+  .edge.model .elabel{fill:var(--model)}
+  .node{cursor:pointer}
+  .node .hit{fill:transparent;stroke:none;rx:8}
+  .node:hover .hit{fill:rgba(9,105,218,.06)}
+  .node .ring{fill:none;stroke:none;rx:8}
+  .node.seed .ring{stroke:var(--seed);stroke-width:2.5}
+  .node.sel .ring{stroke:var(--accent);stroke-width:2.5}
+  .node .nname{fill:var(--ink);font-weight:600;font-size:12.5px}
+  .node .ntype{fill:var(--muted);font-size:10.5px}
+  .node .fbox{fill:#dae8fc;stroke:#6c8ebf;stroke-width:1.4;rx:6}
+  .node.external .fbox{fill:#f6f8fa;stroke:#8c959f;stroke-dasharray:5 4}
+  .node .fbtext{fill:#1f3b57;font-weight:600;font-size:12px}
+  .node.external .fbtext{fill:#57606a}
+  .dim{opacity:.13 !important}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>cloudmap</b> <span id="seedName"></span></h1>
+  <div class="search"><input id="q" type="search" placeholder="search resources..."></div>
+  <div class="toggles">
+    <label><input type="checkbox" id="tModel" checked> model</label>
+    <label><input type="checkbox" id="tExt" checked> external</label>
+  </div>
+  <div class="badges" id="badges"></div>
+</header>
+<div id="stage">
+  <div id="wrap">
+    <svg id="graph" xmlns="http://www.w3.org/2000/svg"><g id="vp"></g></svg>
+    <div class="zoom">
+      <button id="zin" title="zoom in">+</button>
+      <button id="zout" title="zoom out">&minus;</button>
+      <button id="zfit" title="fit">&#9634;</button>
+    </div>
+    <div class="legend">
+      <span class="lg"><span class="sw"></span> verified</span>
+      <span class="lg"><span class="sw model"></span> model guess</span>
+      <span class="lg"><span class="sw box"></span> seed</span>
+    </div>
+  </div>
+  <aside id="panel" class="empty">
+    <div class="hint">Click a resource to focus its blast radius. Scroll to zoom, drag to pan.</div>
+    <div class="detail"></div>
+  </aside>
+</div>
+<script>
+const DATA = {"seed": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-frontend-random", "seedName": "app-frontend-random", "meta": {"complete": true, "truncated": false, "read_gaps": [], "blind_spots": [], "external": 0, "model_edges": 0, "nodes": 5, "edges": 4}, "nodes": [{"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-frontend-random", "name": "app-frontend-random", "type": "microsoft.web/sites", "rg": "rg-complex", "location": "westeurope", "hops": 0, "external": false, "note": "", "seed": true}, {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random", "name": "app-backend-random", "type": "microsoft.web/sites", "rg": "rg-complex", "location": "westeurope", "hops": 1, "external": false, "note": "", "seed": false}, {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.keyvault/vaults/kv-complex-random", "name": "kv-complex-random", "type": "microsoft.keyvault/vaults", "rg": "rg-complex", "location": "westeurope", "hops": 2, "external": false, "note": "", "seed": false}, {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.cache/redis/redis-complex-random", "name": "redis-complex-random", "type": "microsoft.cache/redis", "rg": "rg-complex", "location": "westeurope", "hops": 2, "external": false, "note": "", "seed": false}, {"id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.sql/servers/sql-complex-random", "name": "sql-complex-random", "type": "microsoft.sql/servers", "rg": "rg-complex", "location": "westeurope", "hops": 2, "external": false, "note": "", "seed": false}], "edges": [{"source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-frontend-random", "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random", "kind": "calls", "origin": "extracted", "evidence": "app config references host app-backend-random.azurewebsites.net"}, {"source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random", "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.keyvault/vaults/kv-complex-random", "kind": "reads-secret", "origin": "extracted", "evidence": "app config references host kv-complex-random.vault.azure.net; Key Vault reference to vault kv-complex-random"}, {"source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random", "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.cache/redis/redis-complex-random", "kind": "connects-to", "origin": "extracted", "evidence": "app config references host redis-complex-random.redis.cache.windows.net"}, {"source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random", "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.sql/servers/sql-complex-random", "kind": "connects-to", "origin": "extracted", "evidence": "app config references host sql-complex-random.database.windows.net"}], "icons": {"microsoft.web/sites": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" id=\"az21-b70acf0a-34b4-4bdf-9024-7496043ff915\" width=\"16.967587\" height=\"16.971489\" viewBox=\"0 0 16.967587 16.971489\" version=\"1.1\"><defs id=\"az21-defs3367\"><radialGradient id=\"az21-e2cf8746-c9a8-4eee-86c2-4951983c6032\" cx=\"13428.81\" cy=\"3518.8601\" r=\"56.669998\" gradientTransform=\"matrix(0.15,0,0,0.15,-2005.33,-518.83)\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0.18\" stop-color=\"#5ea0ef\" id=\"az21-stop3347\" /><stop offset=\"1\" stop-color=\"#0078d4\" id=\"az21-stop3349\" /><\/radialGradient><linearGradient id=\"az21-bdd213dd-d313-473c-8ff4-0133fd3a9033\" x1=\"4.4000001\" y1=\"11.48\" x2=\"4.3699999\" y2=\"7.5300002\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#ccc\" id=\"az21-stop3352\" /><stop offset=\"1\" stop-color=\"#fcfcfc\" id=\"az21-stop3354\" /><\/linearGradient><linearGradient id=\"az21-afcc63c5-3649-4476-a742-bcb53a569f3c\" x1=\"10.13\" y1=\"15.45\" x2=\"10.13\" y2=\"11.9\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#ccc\" id=\"az21-stop3357\" /><stop offset=\"1\" stop-color=\"#fcfcfc\" id=\"az21-stop3359\" /><\/linearGradient><linearGradient id=\"az21-bd873f0b-9954-4aa5-a3df-9f4c64e8729d\" x1=\"14.18\" y1=\"11.15\" x2=\"14.18\" y2=\"7.3800001\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#ccc\" id=\"az21-stop3362\" /><stop offset=\"1\" stop-color=\"#fcfcfc\" id=\"az21-stop3364\" /><\/linearGradient><linearGradient xlink:href=\"#az21-bdd213dd-d313-473c-8ff4-0133fd3a9033\" id=\"az21-linearGradient3401\" gradientUnits=\"userSpaceOnUse\" x1=\"4.4000001\" y1=\"11.48\" x2=\"4.3699999\" y2=\"7.5300002\" /><linearGradient xlink:href=\"#az21-afcc63c5-3649-4476-a742-bcb53a569f3c\" id=\"az21-linearGradient3403\" gradientUnits=\"userSpaceOnUse\" x1=\"10.13\" y1=\"15.45\" x2=\"10.13\" y2=\"11.9\" /><linearGradient xlink:href=\"#az21-bdd213dd-d313-473c-8ff4-0133fd3a9033\" id=\"az21-linearGradient3405\" gradientUnits=\"userSpaceOnUse\" x1=\"4.4000001\" y1=\"11.48\" x2=\"4.3699999\" y2=\"7.5300002\" /><linearGradient xlink:href=\"#az21-afcc63c5-3649-4476-a742-bcb53a569f3c\" id=\"az21-linearGradient3407\" gradientUnits=\"userSpaceOnUse\" x1=\"10.13\" y1=\"15.45\" x2=\"10.13\" y2=\"11.9\" /><\/defs><title id=\"az21-title3369\">Icon-web-41<\/title><path id=\"az21-ee75dd06-1aca-4f76-9d11-d05a284020ad\" d=\"M 13.713088,15.188401 A 8.5030877,8.5030877 0 0 1 3.2930877,1.7484011 l 0.09,-0.06 A 8.5,8.5 0 0 1 13.713088,15.188401\" style=\"fill:url(#az21-e2cf8746-c9a8-4eee-86c2-4951983c6032)\" /><path d=\"m 6.1930877,6.6984011 a 13,13 0 0 1 8.9100003,-3.58 8.47,8.47 0 0 0 -1.49,-1.44 14.34,14.34 0 0 0 -4.6900003,1.1 12.54,12.54 0 0 0 -4.08,2.82 2.76,2.76 0 0 1 1.35,1.1 z\" id=\"az21-path3372\" style=\"opacity:0.6;fill:#ffffff\" /><path d=\"m 1.9830877,10.118401 a 17.86,17.86 0 0 0 -0.83,2.62 7.82,7.82 0 0 0 0.62,0.92 c 0.18,0.23 0.35,0.44 0.55,0.65 a 17.94,17.94 0 0 1 1.08,-3.47 2.76,2.76 0 0 1 -1.42,-0.72 z\" id=\"az21-path3374\" style=\"opacity:0.6;fill:#ffffff\" /><path d=\"m 2.9630877,5.5784011 a 12,12 0 0 1 -0.69,-2.94 8.15,8.15 0 0 0 -1.1,1.45 12.69,12.69 0 0 0 0.57,2.38 2.69,2.69 0 0 1 1.22,-0.89 z\" id=\"az21-path3376\" style=\"opacity:0.55;fill:#f2f2f2\" /><circle cx=\"3.8830879\" cy=\"8.1484013\" r=\"2.73\" id=\"az21-circle3378\" style=\"fill:url(#az21-linearGradient3401)\" /><path d=\"m 7.8630877,13.138401 a 1.77,1.77 0 0 1 0.54,-1.27 11.88,11.88 0 0 1 -2.53,-1.86 2.74,2.74 0 0 1 -1.49,0.83 13.1,13.1 0 0 0 1.45,1.28 12.12,12.12 0 0 0 2.05,1.25 1.79,1.79 0 0 1 -0.02,-0.23 z\" id=\"az21-path3380\" style=\"opacity:0.55;fill:#f2f2f2\" /><path d=\"m 14.163088,13.348401 a 12,12 0 0 1 -2.76,-0.32 0.41,0.41 0 0 1 0,0.11 1.75,1.75 0 0 1 -0.51,1.24 13.69,13.69 0 0 0 3.42,0.24 8.21,8.21 0 0 0 1.19,-1.34 11.5,11.5 0 0 1 -1.34,0.07 z\" id=\"az21-path3382\" style=\"opacity:0.55;fill:#f2f2f2\" /><circle cx=\"9.6330881\" cy=\"13.138401\" r=\"1.78\" id=\"az21-circle3384\" style=\"fill:url(#az21-linearGradient3403)\" /><path d=\"m 11.823088,8.3984011 a 1.83,1.83 0 0 1 0.61,-1 25.5,25.5 0 0 1 -4.4600003,-4.14 16.91,16.91 0 0 1 -2,-2.92000003 7.64,7.64 0 0 0 -1.09,0.42 18.14,18.14 0 0 0 2.15,3.18000003 26.44,26.44 0 0 0 4.7900003,4.46 z\" id=\"az21-path3386\" style=\"opacity:0.7;fill:#f2f2f2\" /><circle cx=\"13.683088\" cy=\"8.7384014\" r=\"1.89\" id=\"az21-circle3388\" style=\"fill:url(#az21-bd873f0b-9954-4aa5-a3df-9f4c64e8729d)\" /><path d=\"m 16.853088,10.008401 -0.35,-0.1699999 v 0 l -0.3,-0.16 h -0.06 l -0.26,-0.21 h -0.07 l -0.31,-0.2 a 1.76,1.76 0 0 1 -0.64,0.9199999 c 0.12,0.08 0.25,0.15 0.38,0.22 l 0.08,0.05 0.35,0.19 v 0 l 0.86,0.45 v 0 a 8.63,8.63 0 0 0 0.29,-1.1099999 z\" id=\"az21-path3390\" style=\"opacity:0.55;fill:#f2f2f2\" /><circle cx=\"3.8830879\" cy=\"8.1484013\" r=\"2.73\" id=\"az21-circle3392\" style=\"fill:url(#az21-linearGradient3405)\" /><circle cx=\"9.6330881\" cy=\"13.138401\" r=\"1.78\" id=\"az21-circle3394\" style=\"fill:url(#az21-linearGradient3407)\" /><\/svg>", "microsoft.keyvault/vaults": "<svg xmlns=\"http://www.w3.org/2000/svg\" id=\"az10-bc93169a-24c4-4686-9f37-c7e4f53b3d34\" width=\"17\" height=\"17\" viewBox=\"0 0 17 17\" version=\"1.1\"><defs id=\"az10-defs73834\"><radialGradient id=\"az10-fb114c93-7c16-4540-899a-0796041629e6\" cx=\"9\" cy=\"9\" r=\"8.5\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0.18\" stop-color=\"#5ea0ef\" id=\"az10-stop73808\" /><stop offset=\"0.56\" stop-color=\"#5c9fee\" id=\"az10-stop73810\" /><stop offset=\"0.69\" stop-color=\"#559ced\" id=\"az10-stop73812\" /><stop offset=\"0.78\" stop-color=\"#4a97e9\" id=\"az10-stop73814\" /><stop offset=\"0.86\" stop-color=\"#3990e4\" id=\"az10-stop73816\" /><stop offset=\"0.93\" stop-color=\"#2387de\" id=\"az10-stop73818\" /><stop offset=\"0.99\" stop-color=\"#087bd6\" id=\"az10-stop73820\" /><stop offset=\"1\" stop-color=\"#0078d4\" id=\"az10-stop73822\" /><\/radialGradient><radialGradient id=\"az10-ec478bd3-5b38-4e7f-b661-11f355578bff\" cx=\"38.950001\" cy=\"182.07001\" r=\"9.8800001\" gradientTransform=\"matrix(0.94,0,0,0.94,-28.21,-162.74)\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0.27\" stop-color=\"#ffd70f\" id=\"az10-stop73825\" /><stop offset=\"0.49\" stop-color=\"#ffcb12\" id=\"az10-stop73827\" /><stop offset=\"0.88\" stop-color=\"#feac19\" id=\"az10-stop73829\" /><stop offset=\"1\" stop-color=\"#fea11b\" id=\"az10-stop73831\" /><\/radialGradient><\/defs><title id=\"az10-title73836\">Icon-security-245<\/title><path id=\"az10-aacf8311-a317-400f-b613-74bd00da5ce3\" d=\"M 8.5,0 A 8.5,8.5 0 1 0 17,8.5 8.51,8.51 0 0 0 8.5,0 Z m 0,15.84 A 7.34,7.34 0 1 1 15.84,8.5 7.34,7.34 0 0 1 8.5,15.84 Z\" style=\"fill:url(#az10-fb114c93-7c16-4540-899a-0796041629e6)\" /><circle cx=\"8.5\" cy=\"8.5\" r=\"7.3400002\" id=\"az10-circle73839\" style=\"fill:#ffffff\" /><g id=\"az10-g73845\" transform=\"translate(-0.5,-0.5)\"><path id=\"az10-bd983c41-db73-40ec-a4f4-da1213fc9924\" d=\"m 13.44,7.33 a 1.84,1.84 0 0 0 0,-2.59 v 0 L 10.29,1.58 a 1.83,1.83 0 0 0 -2.58,0 v 0 L 4.56,4.74 a 1.84,1.84 0 0 0 0,2.59 L 7.18,10 a 0.51,0.51 0 0 1 0.15,0.36 v 4.88 a 0.63,0.63 0 0 0 0.18,0.44 l 1.2,1.2 a 0.41,0.41 0 0 0 0.58,0 l 1.16,-1.16 v 0 l 0.68,-0.68 a 0.25,0.25 0 0 0 0,-0.34 l -0.49,-0.49 a 0.27,0.27 0 0 1 0,-0.37 l 0.49,-0.49 a 0.25,0.25 0 0 0 0,-0.34 l -0.49,-0.49 a 0.27,0.27 0 0 1 0,-0.37 l 0.49,-0.49 a 0.25,0.25 0 0 0 0,-0.34 L 10.45,10.63 V 10.38 Z M 9,2.35 A 1.035,1.035 0 0 1 9,4.42 1.035,1.035 0 1 1 9,2.35 Z\" style=\"fill:url(#az10-ec478bd3-5b38-4e7f-b661-11f355578bff)\" /><path id=\"az10-ad2e7e44-9bfd-4775-8bf4-8ef26a544921\" d=\"m 8.18,15.3 v 0 a 0.23,0.23 0 0 0 0.38,-0.17 v -4 a 0.24,0.24 0 0 0 -0.11,-0.2 v 0 a 0.22,0.22 0 0 0 -0.34,0.2 v 4 a 0.28,0.28 0 0 0 0.07,0.17 z\" style=\"opacity:0.75;fill:#ff9300\" /><rect id=\"az10-a996fbff-3936-4b24-b407-369336c143ba\" x=\"6.48\" y=\"5.79\" width=\"5.1700001\" height=\"0.61000001\" rx=\"0.28\" style=\"opacity:0.75;fill:#ff9300\" /><rect id=\"az10-bb12d31c-3352-4a18-87dd-a169a4a8721d\" x=\"6.48\" y=\"6.7800002\" width=\"5.1700001\" height=\"0.61000001\" rx=\"0.28\" style=\"opacity:0.75;fill:#ff9300\" /><\/g><\/svg>", "microsoft.cache/redis": "<svg xmlns=\"http://www.w3.org/2000/svg\" id=\"az1-a4c0a6df-707e-4ae7-9b86-742e4f9651e0\" width=\"17\" height=\"13.86\" viewBox=\"0 0 17 13.86\" version=\"1.1\"><defs id=\"az1-defs13093\"><linearGradient id=\"az1-ac420e47-f190-46df-ab14-7e1f8fa3a93d\" x1=\"9.5\" y1=\"7.3699999\" x2=\"17.5\" y2=\"7.3699999\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#005ba1\" id=\"az1-stop13060\" /><stop offset=\"0.07\" stop-color=\"#0060a9\" id=\"az1-stop13062\" /><stop offset=\"0.36\" stop-color=\"#0071c8\" id=\"az1-stop13064\" /><stop offset=\"0.52\" stop-color=\"#0078d4\" id=\"az1-stop13066\" /><stop offset=\"1\" stop-color=\"#005ba1\" id=\"az1-stop13068\" /><\/linearGradient><linearGradient id=\"az1-a51ffd84-af0a-457a-abee-1f70656da56f\" x1=\"0.5\" y1=\"7.3699999\" x2=\"8.5\" y2=\"7.3699999\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#005ba1\" id=\"az1-stop13071\" /><stop offset=\"0.07\" stop-color=\"#0060a9\" id=\"az1-stop13073\" /><stop offset=\"0.36\" stop-color=\"#0071c8\" id=\"az1-stop13075\" /><stop offset=\"0.52\" stop-color=\"#0078d4\" id=\"az1-stop13077\" /><stop offset=\"1\" stop-color=\"#005ba1\" id=\"az1-stop13079\" /><\/linearGradient><linearGradient id=\"az1-bbb4b87e-b1f0-4042-b6d6-9b91b5dac799\" x1=\"5\" y1=\"11.9\" x2=\"13\" y2=\"11.9\" gradientUnits=\"userSpaceOnUse\" gradientTransform=\"translate(0.5,2.07)\"><stop offset=\"0\" stop-color=\"#005ba1\" id=\"az1-stop13082\" /><stop offset=\"0.07\" stop-color=\"#0060a9\" id=\"az1-stop13084\" /><stop offset=\"0.36\" stop-color=\"#0071c8\" id=\"az1-stop13086\" /><stop offset=\"0.52\" stop-color=\"#0078d4\" id=\"az1-stop13088\" /><stop offset=\"1\" stop-color=\"#005ba1\" id=\"az1-stop13090\" /><\/linearGradient><\/defs><title id=\"az1-title13095\">Icon-databases-137<\/title><path d=\"M 13,2.55 C 10.79,2.55 9,1.98 9,1.27 v 6.79 c 0,0.69 1.76,1.26 3.95,1.27 H 13 c 2.21,0 4,-0.57 4,-1.27 V 1.27 c 0,0.71 -1.79,1.28 -4,1.28 z\" id=\"az1-path13097\" style=\"fill:url(#az1-ac420e47-f190-46df-ab14-7e1f8fa3a93d)\" /><path d=\"M 17,1.27 C 17,1.98 15.21,2.55 13,2.55 10.79,2.55 9,1.98 9,1.27 9,0.56 10.79,0 13,0 c 2.21,0 4,0.57 4,1.27\" id=\"az1-path13099\" style=\"fill:#e8e8e8\" /><path d=\"m 16.07,1.17 c 0,0.45 -1.38,0.81 -3.07,0.81 -1.69,0 -3.07,-0.36 -3.07,-0.81 0,-0.45 1.38,-0.81 3.07,-0.81 1.69,0 3.07,0.36 3.07,0.81\" id=\"az1-path13101\" style=\"fill:#50e6ff\" /><path d=\"M 13,1.36 A 8.65,8.65 0 0 0 10.57,1.66 7.8,7.8 0 0 0 13,1.98 7.8,7.8 0 0 0 15.43,1.66 8.65,8.65 0 0 0 13,1.36 Z\" id=\"az1-path13103\" style=\"fill:#32bedd\" /><path d=\"M 4,2.55 C 1.79,2.55 0,1.98 0,1.27 v 6.79 c 0,0.69 1.76,1.26 4,1.27 v 0 c 2.21,0 4,-0.57 4,-1.27 V 1.27 C 8,1.98 6.21,2.55 4,2.55 Z\" id=\"az1-path13105\" style=\"fill:url(#az1-a51ffd84-af0a-457a-abee-1f70656da56f)\" /><path d=\"M 8,1.27 C 8,1.98 6.21,2.55 4,2.55 1.79,2.55 0,1.98 0,1.27 0,0.56 1.79,0 4,0 6.21,0 8,0.57 8,1.27\" id=\"az1-path13107\" style=\"fill:#e8e8e8\" /><path d=\"M 7.07,1.17 C 7.07,1.62 5.69,1.98 4,1.98 2.31,1.98 0.93,1.62 0.93,1.17 0.93,0.72 2.31,0.36 4,0.36 c 1.69,0 3.07,0.36 3.07,0.81\" id=\"az1-path13109\" style=\"fill:#50e6ff\" /><path d=\"M 4,1.36 A 8.65,8.65 0 0 0 1.57,1.66 7.8,7.8 0 0 0 4,1.98 7.8,7.8 0 0 0 6.43,1.66 8.65,8.65 0 0 0 4,1.36 Z\" id=\"az1-path13111\" style=\"fill:#32bedd\" /><g id=\"az1-g13121\" transform=\"translate(-0.5,-2.07)\"><path d=\"M 9,9.15 C 6.79,9.15 5,8.58 5,7.87 v 6.79 c 0,0.7 1.76,1.26 3.95,1.27 H 9 c 2.21,0 4,-0.57 4,-1.27 V 7.87 c 0,0.71 -1.79,1.28 -4,1.28 z\" id=\"az1-path13113\" style=\"fill:url(#az1-bbb4b87e-b1f0-4042-b6d6-9b91b5dac799)\" /><path d=\"M 13,7.87 C 13,8.58 11.21,9.15 9,9.15 6.79,9.15 5,8.58 5,7.87 5,7.16 6.79,6.6 9,6.6 c 2.21,0 4,0.57 4,1.27\" id=\"az1-path13115\" style=\"fill:#e8e8e8\" /><path d=\"M 12.07,7.77 C 12.07,8.22 10.69,8.58 9,8.58 7.31,8.58 5.93,8.22 5.93,7.77 5.93,7.32 7.31,7 9,7 c 1.69,0 3.07,0.36 3.07,0.81\" id=\"az1-path13117\" style=\"fill:#50e6ff\" /><path d=\"M 9,8 A 8.65,8.65 0 0 0 6.57,8.3 7.8,7.8 0 0 0 9,8.58 7.8,7.8 0 0 0 11.43,8.26 8.65,8.65 0 0 0 9,8 Z\" id=\"az1-path13119\" style=\"fill:#32bedd\" /><\/g><\/svg>", "microsoft.sql/servers": "<svg xmlns=\"http://www.w3.org/2000/svg\" id=\"az18-b1cfe86c-f00b-4507-bce2-50d07e45fe96\" width=\"17.1\" height=\"17.040001\" viewBox=\"0 0 17.1 17.040001\" version=\"1.1\"><defs id=\"az18-defs15769\"><linearGradient id=\"az18-b39dcf83-187e-4c64-98df-431bb60809d2\" x1=\"0.5\" y1=\"10.04\" x2=\"13.18\" y2=\"10.04\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#005ba1\" id=\"az18-stop15754\" /><stop offset=\"0.07\" stop-color=\"#0060a9\" id=\"az18-stop15756\" /><stop offset=\"0.36\" stop-color=\"#0071c8\" id=\"az18-stop15758\" /><stop offset=\"0.52\" stop-color=\"#0078d4\" id=\"az18-stop15760\" /><stop offset=\"0.64\" stop-color=\"#0074cd\" id=\"az18-stop15762\" /><stop offset=\"0.82\" stop-color=\"#006abb\" id=\"az18-stop15764\" /><stop offset=\"1\" stop-color=\"#005ba1\" id=\"az18-stop15766\" /><\/linearGradient><\/defs><title id=\"az18-title15771\">Icon-databases-132<\/title><path d=\"M 6.34,4.6 C 2.84,4.6 0,3.6 0,2.3 v 12.21 c 0,1.26 2.79,2.28 6.25,2.3 h 0.09 c 3.5,0 6.34,-1 6.34,-2.3 V 2.3 c 0,1.27 -2.84,2.3 -6.34,2.3 z\" id=\"az18-path15773\" style=\"fill:url(#az18-b39dcf83-187e-4c64-98df-431bb60809d2)\" /><path d=\"M 12.68,2.3 C 12.68,3.57 9.84,4.6 6.34,4.6 2.84,4.6 0,3.57 0,2.3 0,1.03 2.84,0 6.34,0 c 3.5,0 6.34,1 6.34,2.3\" id=\"az18-path15775\" style=\"fill:#e8e8e8\" /><path d=\"M 11.2,2.11 C 11.2,2.92 9.02,3.57 6.34,3.57 3.66,3.57 1.5,2.92 1.5,2.11 1.5,1.3 3.66,0.65 6.34,0.65 c 2.68,0 4.86,0.66 4.86,1.46\" id=\"az18-path15777\" style=\"fill:#50e6ff\" /><path d=\"M 6.34,2.45 A 12,12 0 0 0 2.5,3 11.25,11.25 0 0 0 6.35,3.57 11.25,11.25 0 0 0 10.2,3 12,12 0 0 0 6.34,2.45 Z\" id=\"az18-path15779\" style=\"fill:#198ab3\" /><path d=\"M 10.24,10.61 V 7.23 H 9.31 v 4.14 h 2.46 V 10.61 Z M 3.09,8.94 A 1.92,1.92 0 0 1 2.58,8.63 0.44,0.44 0 0 1 2.5,8.31 0.38,0.38 0 0 1 2.66,8 0.72,0.72 0 0 1 3.08,7.89 a 1.67,1.67 0 0 1 1,0.29 V 7.32 a 2.67,2.67 0 0 0 -1,-0.16 1.74,1.74 0 0 0 -1.2,0.35 1.13,1.13 0 0 0 -0.41,0.9 c 0,0.51 0.32,0.91 1,1.21 A 2.9,2.9 0 0 1 3.08,9.98 0.4,0.4 0 0 1 3.24,10.3 0.38,0.38 0 0 1 3.08,10.61 0.75,0.75 0 0 1 2.63,10.73 1.6,1.6 0 0 1 1.5,10.28 v 0.93 A 2.29,2.29 0 0 0 2.57,11.44 2,2 0 0 0 3.75,11.12 1.1,1.1 0 0 0 4.18,10.2 1,1 0 0 0 3.93,9.5 2.42,2.42 0 0 0 3.09,8.94 Z m 5.2,1.57 A 2.4,2.4 0 0 0 8.62,9.24 2.32,2.32 0 0 0 8.37,8.14 1.81,1.81 0 0 0 7.67,7.39 2,2 0 0 0 6.67,7.13 2.18,2.18 0 0 0 5.58,7.4 1.87,1.87 0 0 0 4.85,8.17 2.41,2.41 0 0 0 4.59,9.32 a 2.26,2.26 0 0 0 0.24,1.05 1.83,1.83 0 0 0 0.68,0.75 2,2 0 0 0 1,0.29 l 0.85,1 H 8.55 L 7.35,11.3 A 1.81,1.81 0 0 0 8.29,10.51 Z M 7.36,10.25 a 1,1 0 0 1 -1.53,0 1.51,1.51 0 0 1 -0.28,-1 1.48,1.48 0 0 1 0.29,-1 0.92,0.92 0 0 1 0.78,-0.37 0.89,0.89 0 0 1 0.75,0.37 1.62,1.62 0 0 1 0.27,1 1.46,1.46 0 0 1 -0.28,1.03 z\" id=\"az18-path15781\" style=\"fill:#f2f2f2\" /><path d=\"m 14.31,17 0.24,-0.79 0.47,-0.27 0.81,0.36 0.52,-0.53 V 15.71 L 15.98,15 16.2,14.5 17.01,14.21 H 17.1 V 13.48 H 17 l -0.8,-0.24 -0.26,-0.46 0.35,-0.82 -0.53,-0.51 H 15.7 l -0.71,0.36 -0.49,-0.3 -0.32,-0.89 h -0.74 v 0.11 l -0.24,0.79 -0.51,0.22 -0.87,-0.4 -0.51,0.53 0.05,0.1 0.38,0.74 -0.2,0.51 -0.94,0.29 v 0.74 h 0.11 l 0.79,0.24 0.22,0.51 -0.39,0.86 0.53,0.52 0.09,-0.05 0.74,-0.38 0.51,0.2 0.34,0.89 h 0.73 z m -1.2,-2.36 a 1.0642486,1.0642486 0 1 1 1.49,-1.52 1.0642486,1.0642486 0 0 1 -1.49,1.52 z\" id=\"az18-path15783\" style=\"fill:#949494\" /><\/svg>"}};
+const NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("graph"), vp=document.getElementById("vp");
+const panel=document.getElementById("panel");
+const byId={}; DATA.nodes.forEach(n=>byId[n.id]=n);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const shortType=t=>String(t||"").split("/").pop();
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+const parser=new DOMParser();
+function iconEl(type,x,y,size){
+  const markup=DATA.icons[type];if(!markup)return null;
+  const doc=parser.parseFromString(markup,"image/svg+xml");
+  const ic=document.importNode(doc.documentElement,true);
+  ic.setAttribute("x",x);ic.setAttribute("y",y);
+  ic.setAttribute("width",size);ic.setAttribute("height",size);
+  return ic;
+}
+
+function catInfo(type){
+  const t=(type||"").toLowerCase();
+  const M=[
+    [/sites|serverfarms|managedclusters|containerinstance|functions/,"compute","#2f6feb"],
+    [/keyvault|managedidentity|userassigned/,"security","#b58907"],
+    [/virtualnetworks|privateendpoints|applicationgateways|apimanagement|networkinterfaces/,"network","#8250df"],
+    [/operationalinsights|insights\/components|workspaces/,"monitor","#bf3989"],
+    [/servicebus|eventhub|searchservices|cognitiveservices/,"integration","#1b7c83"],
+    [/containerregistry|registries/,"registry","#bc4c00"],
+    [/sql|postgres|mysql|documentdb|cosmos|cache|redis|storageaccounts/,"data","#1a7f37"],
+  ];
+  for(const [re,cat,color] of M) if(re.test(t)) return {cat,color};
+  return {cat:"other",color:"#6e7781"};
+}
+
+document.getElementById("seedName").textContent="— "+DATA.seedName;
+(function(){const m=DATA.meta,b=document.getElementById("badges");
+  const add=(txt,cls,title)=>{const s=document.createElement("span");s.className="badge "+(cls||"");s.textContent=txt;if(title)s.title=title;b.appendChild(s);};
+  add(m.nodes+" resources");add(m.edges+" dependencies");
+  if(m.external)add(m.external+" external","warn");
+  if(m.model_edges)add(m.model_edges+" model","warn");
+  // why it is incomplete travels with the badge, so the reader never has to guess
+  const why=[].concat(m.truncated?["scan hit the pagination cap"]:[],m.read_gaps||[],m.blind_spots||[]);
+  add(m.complete?"complete":"INCOMPLETE",m.complete?"ok":"warn",why.join("\n\n"));
+})();
+
+// ---- layout: radial blast ----
+// The seed IS the centre of the blast, so draw it that way: dependencies fan out
+// to the RIGHT, dependents to the LEFT, one ring per hop. Angular spans follow a
+// tidy radial tree (each node centred over its subtree), so edges rarely cross,
+// and every edge leaves the seed at its own angle - no bundling, no label pile-up.
+const NW=168,NH=104,ICON=56,PAD=70,RSTEP=270,MINCHORD=190;
+const adjD={},adjU={};
+DATA.edges.forEach(e=>{(adjD[e.source]=adjD[e.source]||[]).push(e.target);
+                       (adjU[e.target]=adjU[e.target]||[]).push(e.source);});
+// BFS tree from the seed with the same direction-consistency the engine uses.
+const info={};info[DATA.seed]={hops:0,side:"seed",children:[]};
+const bfs=[DATA.seed];
+while(bfs.length){
+  const id=bfs.shift(),inf=info[id],steps=[];
+  if(inf.side!=="up")(adjD[id]||[]).forEach(t=>steps.push([t,"down"]));
+  if(inf.side!=="down")(adjU[id]||[]).forEach(s=>steps.push([s,"up"]));
+  steps.forEach(([nb,d])=>{if(info[nb]||!byId[nb])return;
+    info[nb]={hops:inf.hops+1,side:d,children:[]};inf.children.push(nb);bfs.push(nb);});
+}
+DATA.nodes.forEach(n=>{if(!info[n.id]){                      // safety net: never drop
+  info[n.id]={hops:1,side:"down",children:[]};info[DATA.seed].children.push(n.id);}});
+const leafN={};
+(function count(id){const c=info[id].children;
+  return leafN[id]=c.length?c.reduce((s,k)=>s+count(k),0):1;})(DATA.seed);
+function spread(kids,a0,a1){
+  const tot=kids.reduce((s,k)=>s+leafN[k],0)||1;let a=a0;
+  kids.forEach(k=>{const w=(a1-a0)*leafN[k]/tot;
+    info[k].angle=a+w/2;spread(info[k].children,a,a+w);a+=w;});
+}
+spread(info[DATA.seed].children.filter(k=>info[k].side==="down"),-76,76);
+spread(info[DATA.seed].children.filter(k=>info[k].side==="up"),104,256);
+// ring radii: grow until neighbours on the ring cannot collide
+const radius={0:0};let rr=0;
+[...new Set(Object.values(info).map(i=>i.hops))].filter(h=>h>0).sort((a,b)=>a-b).forEach(h=>{
+  const as=Object.values(info).filter(i=>i.hops===h).map(i=>i.angle).sort((a,b)=>a-b);
+  let need=RSTEP;
+  for(let i=1;i<as.length;i++){const d=(as[i]-as[i-1])*Math.PI/180;
+    if(d>1e-4)need=Math.max(need,MINCHORD/(2*Math.sin(Math.min(d,Math.PI)/2)));}
+  rr=Math.max(rr+RSTEP*.85,need);radius[h]=rr;
+});
+// rings are ellipses (wider than tall): labels sit under the icons, screens are
+// wide, and the stretch keeps the fan from becoming a tall oval hugging the seed.
+const STRETCH=1.55;
+const pos={};let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+DATA.nodes.forEach(n=>{const inf=info[n.id];let x=0,y=0;
+  if(inf.hops>0){const a=inf.angle*Math.PI/180;
+    x=radius[inf.hops]*STRETCH*Math.cos(a);y=radius[inf.hops]*Math.sin(a);}
+  pos[n.id]={cx:x,cy:y};
+  mnx=Math.min(mnx,x-NW/2);mxx=Math.max(mxx,x+NW/2);
+  mny=Math.min(mny,y-NH/2);mxy=Math.max(mxy,y+NH/2);});
+const W=mxx-mnx+PAD*2,H=mxy-mny+PAD*2;
+DATA.nodes.forEach(n=>{const p=pos[n.id];
+  p.cx+=PAD-mnx;p.cy+=PAD-mny;p.x=p.cx-NW/2;p.y=p.cy-NH/2;});
+
+const defs=el("defs");
+[["arrow","#8b939c"],["arrow-model","#cf222e"]].forEach(([id,col])=>{
+  const m=el("marker",{id,viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto-start-reverse"});
+  m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:col}));defs.appendChild(m);});
+vp.appendChild(defs);
+const gE=el("g"),gN=el("g");vp.appendChild(gE);vp.appendChild(gN);
+
+function anchor(from,to){                 // where the line meets the node's box
+  const dx=to.cx-from.cx,dy=to.cy-from.cy;
+  const t=1/Math.max(Math.abs(dx)/(NW/2-14),Math.abs(dy)/(NH/2+4),1e-6);
+  return {x:from.cx+dx*Math.min(t,1),y:from.cy+dy*Math.min(t,1)};
+}
+function edgeGeom(a,b){
+  const s=anchor(a,b),t=anchor(b,a);
+  const dx=t.x-s.x,dy=t.y-s.y,len=Math.hypot(dx,dy)||1;
+  const bow=Math.min(26,len*.07),px=-dy/len*bow,py=dx/len*bow;   // gentle arc
+  const mx=(s.x+t.x)/2+px,my=(s.y+t.y)/2+py;
+  let ang=Math.atan2(dy,dx)*180/Math.PI;
+  if(ang>90||ang<-90)ang+=180;            // keep the label readable, never upside down
+  return {d:`M${s.x},${s.y} Q${mx},${my} ${t.x},${t.y}`,mx:mx-px/2,my:my-py/2,ang};
+}
+
+const incident={},edgeG=[];
+DATA.edges.forEach((e,i)=>{
+  (incident[e.source]=incident[e.source]||[]).push(i);
+  (incident[e.target]=incident[e.target]||[]).push(i);
+  const a=pos[e.source],b=pos[e.target];if(!a||!b){edgeG[i]=null;return;}
+  const model=e.origin==="model",gm=edgeGeom(a,b);
+  const g=el("g",{class:"edge"+(model?" model":"")});
+  g.appendChild(el("path",{d:gm.d,"marker-end":model?"url(#arrow-model)":"url(#arrow)"}));
+  // the label rides its own edge (rotated along it), so labels fan out with the
+  // edges instead of piling on one axis; long kinds are trimmed - full text on hover
+  const kind=e.kind+(model?" (model)":"");
+  const t=el("text",{y:-5,"text-anchor":"middle",class:"elabel",
+    transform:`translate(${gm.mx},${gm.my}) rotate(${gm.ang})`});
+  t.textContent=kind.length>32?kind.slice(0,30)+"…":kind;
+  const tip=el("title");tip.textContent=e.kind+(e.evidence?"\n"+e.evidence:"");
+  g.appendChild(tip);g.appendChild(t);
+  gE.appendChild(g);edgeG[i]=g;
+});
+
+const nodeG={};
+DATA.nodes.forEach(n=>{
+  const p=pos[n.id];if(!p)return;
+  const g=el("g",{class:"node"+(n.seed?" seed":"")+(n.external?" external":""),
+                  transform:`translate(${p.x},${p.y})`});
+  g.appendChild(el("rect",{class:"hit",width:NW,height:NH,rx:8}));
+  const icon=n.external?null:iconEl(n.type,(NW-ICON)/2,4,ICON);
+  if(icon){
+    g.appendChild(icon);
+    const t1=el("text",{x:NW/2,y:ICON+22,class:"nname","text-anchor":"middle"});
+    t1.textContent=n.name;g.appendChild(t1);
+    const t2=el("text",{x:NW/2,y:ICON+37,class:"ntype","text-anchor":"middle"});
+    t2.textContent=shortType(n.type);g.appendChild(t2);
+  }else{
+    // no icon for this type: a plain diagram box (blue = azure resource,
+    // dashed grey = external/unverified reference), never a broken image
+    g.appendChild(el("rect",{class:"fbox",x:9,y:22,width:NW-18,height:44,rx:6}));
+    const t1=el("text",{x:NW/2,y:48,class:"fbtext","text-anchor":"middle"});
+    t1.textContent=n.name.length>22?n.name.slice(0,21)+"…":n.name;g.appendChild(t1);
+    const t2=el("text",{x:NW/2,y:80,class:"ntype","text-anchor":"middle"});
+    t2.textContent=n.external?"external":shortType(n.type);g.appendChild(t2);
+  }
+  g.appendChild(el("rect",{class:"ring",x:2,y:2,width:NW-4,height:NH-4,rx:8}));
+  const tip=el("title");tip.textContent=n.name+"\n"+n.type;g.appendChild(tip);
+  g.addEventListener("pointerdown",ev=>ev.stopPropagation());
+  g.addEventListener("click",ev=>{ev.stopPropagation();focus(n.id);});
+  gN.appendChild(g);nodeG[n.id]=g;
+});
+
+// ---- zoom & pan ----
+let scale=1,tx=0,ty=0;
+function apply(){vp.setAttribute("transform",`translate(${tx},${ty}) scale(${scale})`);}
+function fit(){const r=svg.getBoundingClientRect();
+  const s=Math.min(1.2,(r.width-60)/W,(r.height-60)/H)||1;
+  scale=s>0?s:1;tx=(r.width-W*scale)/2;ty=Math.max(20,(r.height-H*scale)/2);apply();}
+function zoomAt(mx,my,f){const ns=Math.min(3,Math.max(.2,scale*f));
+  tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;apply();}
+svg.addEventListener("wheel",e=>{e.preventDefault();const r=svg.getBoundingClientRect();
+  zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.12:1/1.12);},{passive:false});
+let drag=false,moved=false,x0,y0,tx0,ty0;
+svg.addEventListener("pointerdown",e=>{drag=true;moved=false;x0=e.clientX;y0=e.clientY;tx0=tx;ty0=ty;svg.classList.add("grabbing");svg.setPointerCapture(e.pointerId);});
+svg.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-x0,dy=e.clientY-y0;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;tx=tx0+dx;ty=ty0+dy;apply();});
+svg.addEventListener("pointerup",e=>{drag=false;svg.classList.remove("grabbing");if(!moved)clearFocus();});
+document.getElementById("zin").onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(r.width/2,r.height/2,1.2);};
+document.getElementById("zout").onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(r.width/2,r.height/2,1/1.2);};
+document.getElementById("zfit").onclick=fit;
+window.addEventListener("resize",fit);
+
+// ---- focus / panel ----
+function focus(id){
+  const keepN=new Set([id]),keepE=new Set();
+  (incident[id]||[]).forEach(i=>{keepE.add(i);keepN.add(DATA.edges[i].source);keepN.add(DATA.edges[i].target);});
+  DATA.nodes.forEach(n=>nodeG[n.id]&&nodeG[n.id].classList.toggle("dim",!keepN.has(n.id)));
+  DATA.edges.forEach((e,i)=>edgeG[i]&&edgeG[i].classList.toggle("dim",!keepE.has(i)));
+  Object.values(nodeG).forEach(g=>g.classList.remove("sel"));
+  nodeG[id]&&nodeG[id].classList.add("sel");
+  showPanel(id);
+}
+function clearFocus(){
+  document.querySelectorAll(".dim").forEach(x=>x.classList.remove("dim"));
+  Object.values(nodeG).forEach(g=>g.classList.remove("sel"));
+  panel.className="empty";panel.querySelector(".detail").innerHTML="";
+}
+function showPanel(id){
+  const n=byId[id],ci=catInfo(n.type),rows=[];
+  (incident[id]||[]).forEach(i=>{
+    const e=DATA.edges[i],out=e.source===id,other=byId[out?e.target:e.source]||{name:(out?e.target:e.source)};
+    const model=e.origin==="model";
+    rows.push(`<div class="dep"><div class="top">
+        <span><span class="arrow">${out?"depends on →":"← used by"}</span> <span class="name">${esc(other.name)}</span></span>
+        <span class="tag ${model?"model":"verified"}">${model?"model":"verified"}</span></div>
+      <div class="kind">${esc(e.kind)}</div>
+      ${e.evidence?`<div class="ev">${esc(e.evidence)}</div>`:""}</div>`);
+  });
+  panel.className="";
+  const hico=DATA.icons[n.type]
+    ?`<span class="hico">${DATA.icons[n.type].replace("<svg ",'<svg width="22" height="22" ')}</span>`:"";
+  panel.querySelector(".detail").innerHTML=`
+    <h2>${hico}${esc(n.name)}${n.seed?" (seed)":""}</h2>
+    <div class="sub">${esc(n.type)} <span class="chip" style="background:${ci.color}">${ci.cat}</span></div>
+    ${n.rg?`<div class="kv"><b>group</b><span>${esc(n.rg)}</span></div>`:""}
+    ${n.location?`<div class="kv"><b>location</b><span>${esc(n.location)}</span></div>`:""}
+    ${n.external?`<div class="kv"><b>status</b><span>external / unverified</span></div>`:""}
+    ${n.note?`<div class="kv"><b>note</b><span>${esc(n.note)}</span></div>`:""}
+    <div class="deps"><h3>${rows.length} connection${rows.length===1?"":"s"}</h3>${rows.join("")||'<div class="hint">no edges</div>'}</div>`;
+}
+svg.addEventListener("click",e=>{if(e.target===svg||e.target===vp)clearFocus();});
+
+// ---- search + toggles ----
+document.getElementById("q").addEventListener("input",e=>{
+  const q=e.target.value.trim().toLowerCase();
+  DATA.nodes.forEach(n=>{const hit=!q||n.name.toLowerCase().includes(q)||(n.type||"").toLowerCase().includes(q);
+    nodeG[n.id]&&nodeG[n.id].classList.toggle("dim",!hit);});
+});
+function applyToggles(){
+  const sm=document.getElementById("tModel").checked,se=document.getElementById("tExt").checked;
+  DATA.nodes.forEach(n=>{if(n.external&&nodeG[n.id])nodeG[n.id].classList.toggle("hidden",!se);});
+  DATA.edges.forEach((e,i)=>{if(!edgeG[i])return;
+    const eh=!se&&((byId[e.source]&&byId[e.source].external)||(byId[e.target]&&byId[e.target].external));
+    edgeG[i].classList.toggle("hidden",eh||(!sm&&e.origin==="model"));});
+}
+document.getElementById("tModel").addEventListener("change",applyToggles);
+document.getElementById("tExt").addEventListener("change",applyToggles);
+
+fit();
+</script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+{
+  "seed": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-frontend-random",
+  "meta": {
+    "complete": true,
+    "truncated": false,
+    "read_gaps": [],
+    "blind_spots": [],
+    "external_unverified": 0,
+    "model_edges": 0
+  },
+  "nodes": [
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-frontend-random",
+      "name": "app-frontend-random",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "rg-complex",
+      "location": "westeurope",
+      "hops": 0,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random",
+      "name": "app-backend-random",
+      "type": "microsoft.web/sites",
+      "resourceGroup": "rg-complex",
+      "location": "westeurope",
+      "hops": 1,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.keyvault/vaults/kv-complex-random",
+      "name": "kv-complex-random",
+      "type": "microsoft.keyvault/vaults",
+      "resourceGroup": "rg-complex",
+      "location": "westeurope",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.cache/redis/redis-complex-random",
+      "name": "redis-complex-random",
+      "type": "microsoft.cache/redis",
+      "resourceGroup": "rg-complex",
+      "location": "westeurope",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    },
+    {
+      "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.sql/servers/sql-complex-random",
+      "name": "sql-complex-random",
+      "type": "microsoft.sql/servers",
+      "resourceGroup": "rg-complex",
+      "location": "westeurope",
+      "hops": 2,
+      "external": false,
+      "note": ""
+    }
+  ],
+  "edges": [
+    {
+      "source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-frontend-random",
+      "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random",
+      "kind": "calls",
+      "origin": "extracted",
+      "evidence": "app config references host app-backend-random.azurewebsites.net"
+    },
+    {
+      "source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random",
+      "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.keyvault/vaults/kv-complex-random",
+      "kind": "reads-secret",
+      "origin": "extracted",
+      "evidence": "app config references host kv-complex-random.vault.azure.net; Key Vault reference to vault kv-complex-random"
+    },
+    {
+      "source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random",
+      "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.cache/redis/redis-complex-random",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host redis-complex-random.redis.cache.windows.net"
+    },
+    {
+      "source": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random",
+      "target": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.sql/servers/sql-complex-random",
+      "kind": "connects-to",
+      "origin": "extracted",
+      "evidence": "app config references host sql-complex-random.database.windows.net"
+    }
+  ]
+}

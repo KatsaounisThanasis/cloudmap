@@ -1,0 +1,39 @@
+<mxfile host="cloudmap">
+  <diagram id="cloudmap" name="Blast radius">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <object id="n0" label="app-frontend-random (sites)" type="microsoft.web/sites" ResourceGroup="rg-complex" Location="westeurope" ARM_ID="/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-frontend-random">
+          <mxCell style="shape=image;html=1;image=img/lib/azure2/compute/App_Services.svg;verticalLabelPosition=bottom;verticalAlign=top;aspect=fixed;fontSize=11;strokeColor=#d79b00;strokeWidth=3;" vertex="1" parent="1">
+            <mxGeometry x="60" y="180" width="48" height="48" as="geometry"/>
+          </mxCell>
+        </object>
+        <object id="n1" label="app-backend-random (sites)" type="microsoft.web/sites" ResourceGroup="rg-complex" Location="westeurope" ARM_ID="/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.web/sites/app-backend-random">
+          <mxCell style="shape=image;html=1;image=img/lib/azure2/compute/App_Services.svg;verticalLabelPosition=bottom;verticalAlign=top;aspect=fixed;fontSize=11;" vertex="1" parent="1">
+            <mxGeometry x="300" y="180" width="48" height="48" as="geometry"/>
+          </mxCell>
+        </object>
+        <object id="n2" label="kv-complex-random (vaults)" type="microsoft.keyvault/vaults" ResourceGroup="rg-complex" Location="westeurope" ARM_ID="/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.keyvault/vaults/kv-complex-random">
+          <mxCell style="shape=image;html=1;image=img/lib/azure2/security/Key_Vaults.svg;verticalLabelPosition=bottom;verticalAlign=top;aspect=fixed;fontSize=11;" vertex="1" parent="1">
+            <mxGeometry x="540" y="60" width="48" height="48" as="geometry"/>
+          </mxCell>
+        </object>
+        <object id="n3" label="redis-complex-random (redis)" type="microsoft.cache/redis" ResourceGroup="rg-complex" Location="westeurope" ARM_ID="/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.cache/redis/redis-complex-random">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+            <mxGeometry x="540" y="180" width="170" height="50" as="geometry"/>
+          </mxCell>
+        </object>
+        <object id="n4" label="sql-complex-random (servers)" type="microsoft.sql/servers" ResourceGroup="rg-complex" Location="westeurope" ARM_ID="/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-complex/providers/microsoft.sql/servers/sql-complex-random">
+          <mxCell style="shape=image;html=1;image=img/lib/azure2/databases/SQL_Server.svg;verticalLabelPosition=bottom;verticalAlign=top;aspect=fixed;fontSize=11;" vertex="1" parent="1">
+            <mxGeometry x="540" y="300" width="48" height="48" as="geometry"/>
+          </mxCell>
+        </object>
+        <mxCell id="e0" value="calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;fontColor=#555555;" edge="1" parent="1" source="n0" target="n1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e1" value="reads-secret" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;fontColor=#555555;" edge="1" parent="1" source="n1" target="n2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="connects-to" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;fontColor=#555555;" edge="1" parent="1" source="n1" target="n3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="connects-to" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;fontColor=#555555;" edge="1" parent="1" source="n1" target="n4"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

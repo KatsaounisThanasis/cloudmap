@@ -1,5 +1,7 @@
 import pytest
+
 from cloudmap.ingest import azure
+
 
 def test_resolve_secret_handles_failures(monkeypatch):
     def fake_az(*args, **kwargs):

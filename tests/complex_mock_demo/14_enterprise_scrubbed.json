@@ -1,0 +1,298 @@
+{
+  "meta": {
+    "scrubbed": true
+  },
+  "data": [
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Network/frontdoors/frontd-1",
+      "name": "frontd-1",
+      "type": "microsoft.network/frontdoors",
+      "location": "global",
+      "properties": {}
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-1",
+      "name": "app-1",
+      "type": "microsoft.web/sites",
+      "location": "westeurope",
+      "properties": {
+        "defaultHostName": "app-1.azurewebsites.net",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "API_URL",
+              "value": "https://app-2.azurewebsites.net"
+            },
+            {
+              "name": "AUTH_URL",
+              "value": "https://app-3.azurewebsites.net"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-2",
+      "name": "app-2",
+      "type": "microsoft.web/sites",
+      "location": "westeurope",
+      "properties": {
+        "defaultHostName": "app-2.azurewebsites.net",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "ORDERS_API",
+              "value": "https://app-4.azurewebsites.net"
+            },
+            {
+              "name": "INVENTORY_API",
+              "value": "https://app-5.azurewebsites.net"
+            },
+            {
+              "name": "PAYMENT_API",
+              "value": "https://ext1.azurecontainerapps.io"
+            },
+            {
+              "name": "RATE_LIMIT_REDIS",
+              "value": "redis-1.redis.cache.windows.net,password=REDACTED"
+            },
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "00000002-0000-0000-0000-000000000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-3",
+      "name": "app-3",
+      "type": "microsoft.web/sites",
+      "location": "westeurope",
+      "properties": {
+        "defaultHostName": "app-3.azurewebsites.net",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "COSMOS_DB",
+              "value": "AccountEndpoint=https://host1.example.invalid/;AccountKey=REDACTED"
+            },
+            {
+              "name": "ENTRA_TENANT",
+              "value": "https://host2.example.invalid/tenant-id"
+            },
+            {
+              "name": "JWT_SECRET",
+              "value": "@Microsoft.KeyVault(SecretUri=https://kv-1.vault.azure.net/secrets/jwt-secret/)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-4",
+      "name": "app-4",
+      "type": "microsoft.web/sites",
+      "location": "westeurope",
+      "properties": {
+        "defaultHostName": "app-4.azurewebsites.net",
+        "siteConfig": {
+          "connectionStrings": [
+            {
+              "name": "SqlDB",
+              "connectionString": "Server=tcp:sql-1.database.windows.net;Database=orders;User ID=sa;Password=REDACTED"
+            }
+          ],
+          "appSettings": [
+            {
+              "name": "SERVICE_BUS",
+              "value": "Endpoint=sb://ext3.servicebus.windows.net/;SharedAccessKeyName=Root;SharedAccessKey=REDACTED"
+            },
+            {
+              "name": "CACHE",
+              "value": "redis-2.redis.cache.windows.net,password=REDACTED"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Web/sites/app-5",
+      "name": "app-5",
+      "type": "microsoft.web/sites",
+      "location": "westeurope",
+      "properties": {
+        "defaultHostName": "app-5.azurewebsites.net",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "PG_DB",
+              "value": "Host=pg-1.postgres.database.azure.com;Username=admin;Password=REDACTED"
+            },
+            {
+              "name": "BLOB_STORAGE",
+              "value": "DefaultEndpointsProtocol=https;AccountName=st-1;AccountKey=REDACTED"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.App/containerApps/ca-1",
+      "name": "ca-1",
+      "type": "microsoft.app/containerapps",
+      "location": "westeurope",
+      "properties": {
+        "configuration": {
+          "ingress": {
+            "fqdn": "ext1.azurecontainerapps.io"
+          },
+          "secrets": [
+            {
+              "name": "stripe-key",
+              "keyVaultUrl": "https://kv-2.vault.azure.net/secrets/stripe/"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "env": [
+                {
+                  "name": "EVENT_HUB",
+                  "value": "Endpoint=sb://ext4.servicebus.windows.net/;SharedAccessKey=REDACTED"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.App/containerApps/ca-2",
+      "name": "ca-2",
+      "type": "microsoft.app/containerapps",
+      "location": "westeurope",
+      "properties": {
+        "configuration": {
+          "ingress": {
+            "fqdn": "ext5.azurecontainerapps.io"
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "env": [
+                {
+                  "name": "SERVICE_BUS",
+                  "value": "Endpoint=sb://ext3.servicebus.windows.net/;SharedAccessKeyName=Root"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.ContainerService/managedClusters/aks-1",
+      "name": "aks-1",
+      "type": "microsoft.containerservice/managedclusters",
+      "location": "westeurope",
+      "properties": {
+        "fqdn": "aks-core.hcp.westeurope.azmk8s.io"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Sql/servers/sql-1",
+      "name": "sql-1",
+      "type": "microsoft.sql/servers",
+      "properties": {
+        "fullyQualifiedDomainName": "sql-1.database.windows.net"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-1",
+      "name": "pg-1",
+      "type": "microsoft.dbforpostgresql/flexibleservers",
+      "properties": {
+        "fullyQualifiedDomainName": "pg-1.postgres.database.azure.com"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-1",
+      "name": "cosmos-1",
+      "type": "microsoft.documentdb/databaseaccounts",
+      "properties": {
+        "documentEndpoint": "https://host1.example.invalid/"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Cache/Redis/redis-1",
+      "name": "redis-1",
+      "type": "microsoft.cache/redis",
+      "properties": {
+        "hostName": "redis-1.redis.cache.windows.net"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Cache/Redis/redis-2",
+      "name": "redis-2",
+      "type": "microsoft.cache/redis",
+      "properties": {
+        "hostName": "redis-2.redis.cache.windows.net"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Storage/storageAccounts/st-1",
+      "name": "st-1",
+      "type": "microsoft.storage/storageaccounts",
+      "properties": {
+        "primaryEndpoints": {
+          "blob": "https://ext6.blob.core.windows.net/"
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.Storage/storageAccounts/st-2",
+      "name": "st-2",
+      "type": "microsoft.storage/storageaccounts",
+      "properties": {
+        "primaryEndpoints": {
+          "queue": "https://ext7.queue.core.windows.net/"
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.ServiceBus/namespaces/sb-1",
+      "name": "sb-1",
+      "type": "microsoft.servicebus/namespaces",
+      "properties": {
+        "serviceBusEndpoint": "https://ext3.servicebus.windows.net/"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.EventHub/namespaces/eh-1",
+      "name": "eh-1",
+      "type": "microsoft.eventhub/namespaces",
+      "properties": {
+        "serviceBusEndpoint": "https://ext4.servicebus.windows.net/"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.KeyVault/vaults/kv-1",
+      "name": "kv-1",
+      "type": "microsoft.keyvault/vaults",
+      "properties": {
+        "vaultUri": "https://kv-1.vault.azure.net/"
+      }
+    },
+    {
+      "id": "/subscriptions/00000001-0000-0000-0000-000000000000/resourceGroups/rg-enterprise-prod/providers/Microsoft.KeyVault/vaults/kv-2",
+      "name": "kv-2",
+      "type": "microsoft.keyvault/vaults",
+      "properties": {
+        "vaultUri": "https://kv-2.vault.azure.net/"
+      }
+    }
+  ]
+}

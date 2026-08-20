@@ -465,8 +465,8 @@ def _ensure_parent(path):
 def _print_summary(graph, seed, out, truncated=False, blind_spots=()):
     try:
         from rich.console import Console
-        from rich.tree import Tree
         from rich.panel import Panel
+        from rich.tree import Tree
     except ImportError:
         Console, Tree, Panel = None, None, None
 
