@@ -17,3 +17,6 @@ out/
 live/
 *.live.json
 .team/
+# live-run output is written to a folder named after the traced resource
+nbg-*/
+nbg-*
