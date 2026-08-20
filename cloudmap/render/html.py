@@ -192,7 +192,8 @@ _TEMPLATE = r"""<!doctype html>
     <label><input type="checkbox" id="tExt" checked> external</label>
   </div>
   <button id="btnDark" style="margin-left:auto;background:var(--card);color:var(--ink);border:1px solid var(--line);padding:5px 10px;border-radius:6px;cursor:pointer;">🌙 Dark Mode</button>
-  <button id="btnExport" style="background:var(--accent);color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:600;">⬇️ SVG</button>
+  <button id="btnExportPNG" style="margin-left:8px;background:var(--accent);color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:600;">⬇️ PNG</button>
+  <button id="btnExportSVG" style="background:var(--accent);color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:600;">⬇️ SVG</button>
   <div class="badges" id="badges"></div>
 </header>
 <div id="stage">
@@ -477,20 +478,28 @@ document.getElementById("btnDark").onclick = () => {
   document.getElementById("btnDark").textContent = document.body.classList.contains("dark") ? "☀️ Light Mode" : "🌙 Dark Mode";
 };
 
-// Export SVG
-document.getElementById("btnExport").onclick = () => {
+// Export logic (PNG & SVG)
+function getExportSVG() {
   const clone = svg.cloneNode(true);
-  // Add CSS inside the exported SVG so it renders correctly independently
+  const bbox = vp.getBBox();
+  const w = bbox.width + 100, h = Math.max(bbox.height + 100, 300);
+  clone.setAttribute("width", w);
+  clone.setAttribute("height", h);
+  clone.setAttribute("viewBox", `${bbox.x - 50} ${bbox.y - 50} ${w} ${h}`);
+  
+  // reset transform so it's not exported with current pan/zoom
+  clone.querySelector("#vp").setAttribute("transform", "");
+  
   const style = document.createElement("style");
   style.textContent = `
     .edge path{fill:none;stroke:#8c959f;stroke-width:1.4}
-    .edge .elabel{fill:#424a53;font-size:10.5px;font-weight:500;stroke:#ffffff;stroke-width:3.5px}
+    .edge .elabel{fill:#424a53;font-size:10.5px;font-weight:500;stroke:${document.body.classList.contains('dark') ? '#0d1117' : '#ffffff'};stroke-width:3.5px}
     .edge.model path{stroke:#cf222e;stroke-dasharray:6 5}
     .edge.model .elabel{fill:#cf222e}
     .node .hit{fill:transparent;stroke:none;rx:8}
     .node .ring{fill:none;stroke:none;rx:8}
     .node.seed .ring{stroke:#bf8700;stroke-width:2.5}
-    .node .nname{fill:#1f2328;font-weight:600;font-size:12.5px;font-family:sans-serif}
+    .node .nname{fill:${document.body.classList.contains('dark') ? '#e6edf3' : '#1f2328'};font-weight:600;font-size:12.5px;font-family:sans-serif}
     .node .ntype{fill:#57606a;font-size:10.5px;font-family:sans-serif}
     .node .fbox{fill:#dae8fc;stroke:#6c8ebf;stroke-width:1.4;rx:6}
     .node.external .fbox{fill:#f6f8fa;stroke:#8c959f;stroke-dasharray:5 4}
@@ -499,6 +508,11 @@ document.getElementById("btnExport").onclick = () => {
     .hidden, .dim {display:none}
   `;
   clone.insertBefore(style, clone.firstChild);
+  return { clone, w, h };
+}
+
+document.getElementById("btnExportSVG").onclick = () => {
+  const { clone } = getExportSVG();
   const svgData = new XMLSerializer().serializeToString(clone);
   const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
   const a = document.createElement("a");
@@ -507,6 +521,29 @@ document.getElementById("btnExport").onclick = () => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+};
+
+document.getElementById("btnExportPNG").onclick = () => {
+  const { clone, w, h } = getExportSVG();
+  const svgData = new XMLSerializer().serializeToString(clone);
+  const svg64 = btoa(unescape(encodeURIComponent(svgData)));
+  
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+  img.onload = function() {
+    canvas.width = w * 2; // retina 2x resolution
+    canvas.height = h * 2;
+    ctx.scale(2, 2);
+    ctx.fillStyle = document.body.classList.contains("dark") ? "#0d1117" : "#f3f6f9";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0);
+    const a = document.createElement("a");
+    a.download = "cloudmap_export.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  };
+  img.src = "data:image/svg+xml;base64," + svg64;
 };
 
 fit();
