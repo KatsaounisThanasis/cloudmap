@@ -34,6 +34,29 @@ draw.io: contoso-web.drawio
   App Gateway  --routes-to-->  contoso-web
 ```
 
+And here is the rich dependency tree generated directly in your terminal:
+
+```text
+Blast radius: 15 resources (0 external), 14 dependencies
+╭────────────────────────────── Dependency Graph ──────────────────────────────╮
+│ 🌐 app-spa-frontend                                                          │
+│ ├── --calls--> 🌐 app-auth-service                                           │
+│ │   ├── --reads-secret--> 🔐 kv-core-prod                                    │
+│ │   └── --connects-to--> 🗄️ cosmos-auth                                      │
+│ └── --calls--> 🌐 app-api-gateway                                            │
+│     ├── --calls--> 📦 capp-payment-service                                   │
+│     │   └── --reads-secret--> 🔐 kv-payments-prod                            │
+│     ├── --calls--> 🌐 app-inventory-api                                      │
+│     │   ├── --connects-to--> 🗄️ pg-inventory-prod                            │
+│     │   └── --connects-to--> 📦 stinventoryprod                              │
+│     ├── --connects-to--> 🗄️ redis-gateway                                    │
+│     └── --calls--> 🌐 app-orders-api                                         │
+│         ├── --connects-to--> 🗄️ redis-orders                                 │
+│         ├── --connects-to--> 📦 sb-enterprise                                │
+│         └── --connects-to--> 🗄️ sql-orders-prod                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 (That is the default **high-level** view - resources grouped by type. Add
 `--level detail` to see every instance with its real name.)
 
@@ -42,7 +65,17 @@ Open the `.drawio` file in [draw.io](https://app.diagrams.net) / the desktop app
 self-contained `--html` viewer straight from disk (no server, no install) and
 click a resource to focus its blast radius:
 
+
+### Interactive HTML Viewer 🎨
+The `--html` output generates a **single, self-contained HTML file** (no server, no CDN, no internet required) that includes:
+- **Dark Mode Toggle** for better readability.
+- **Color-Coded Edges** by relationship type (e.g., 🟡 *Security*, 🟢 *Data*, 🔵 *Network*).
+- **Export to SVG / PNG** buttons for high-resolution snapshots.
+- **Resource Group Filters** & Smart Search.
+- **Direct Azure Portal Links** to jump straight to the resource in your cloud.
+
 ![The interactive HTML viewer: the seed at the centre, dependencies fanned out with native Azure icons, each edge carrying its relationship and proof](estate-viewer.png)
+
 
 ## Why
 
