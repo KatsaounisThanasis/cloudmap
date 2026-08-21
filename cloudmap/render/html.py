@@ -176,6 +176,14 @@ _TEMPLATE = r"""<!doctype html>
   .edge.k-authenticatesvia path { stroke: #8250df; }
   .edge.k-authenticatesvia .elabel { fill: #8250df; }
   body.dark .edge.k-authenticatesvia .elabel { fill: #bc8cff; }
+
+  /* An observer (alert rule, dashboard) breaks when its target goes away, but
+     it is not a dependency and nothing downstream of it can fail. Drawn faint
+     and dashed so a cluster with six alert rules does not read as six deps. */
+  .edge.k-observes path { stroke: #9aa4ae; stroke-dasharray: 5 4; }
+  .edge.k-observes .elabel { fill: #8b949e; font-style: italic; }
+  body.dark .edge.k-observes path { stroke: #6e7681; }
+  body.dark .edge.k-observes .elabel { fill: #8b949e; }
   
   .edge.k-calls path { stroke: #0969da; }
   .edge.k-calls .elabel { fill: #0969da; }

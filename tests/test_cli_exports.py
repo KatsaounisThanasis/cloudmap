@@ -254,3 +254,75 @@ def test_bare_cloudmap_without_a_terminal_refuses_instead_of_prompting(monkeypat
 
     assert rc == 2
     assert "terminal" in capsys.readouterr().err
+
+
+def _summary_of(rows, seed, tmp_path, capsys, extra=()):
+    fixture = tmp_path / "f.json"
+    fixture.write_text(json.dumps({"data": rows}), encoding="utf-8")
+    cli.main(["trace", seed, "--from", str(fixture), "--level", "detail",
+              "-o", str(tmp_path / "m.drawio"), *extra])
+    return capsys.readouterr().out
+
+
+def test_the_terminal_shows_what_depends_on_the_seed_not_just_what_it_needs(tmp_path, capsys):
+    # Shared infrastructure puts its whole story in the upward direction. A
+    # single downward tree used to print two branches under a headline that
+    # counted seven resources, hiding the dependents entirely.
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    vnet = f"{S}/microsoft.network/virtualnetworks/vnet-core"
+    rows = [{"id": vnet, "name": "vnet-core", "type": "microsoft.network/virtualnetworks",
+             "properties": {"ddosProtectionPlan": {"id": f"{S}/microsoft.network/ddosprotectionplans/ddos"}}},
+            {"id": f"{S}/microsoft.network/ddosprotectionplans/ddos", "name": "ddos",
+             "type": "microsoft.network/ddosprotectionplans", "properties": {}}]
+    for i in range(3):
+        rows.append({"id": f"{S}/microsoft.web/sites/app-{i}", "name": f"app-{i}",
+                     "type": "microsoft.web/sites",
+                     "properties": {"virtualNetworkSubnetId": f"{vnet}/subnets/sn"}})
+
+    out = _summary_of(rows, "vnet-core", tmp_path, capsys)
+
+    assert "Depends on" in out and "What depends on it" in out
+    for i in range(3):
+        assert f"app-{i}" in out                  # the dependents are visible now
+    assert "ddos" in out
+
+
+def test_an_upward_edge_is_drawn_pointing_back_at_the_seed(tmp_path, capsys):
+    # Printing an inbound edge like an outbound one would state the dependency
+    # backwards ("vnet depends on app"), so the arrow is reversed.
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    vnet = f"{S}/microsoft.network/virtualnetworks/vnet"
+    rows = [{"id": vnet, "name": "vnet", "type": "microsoft.network/virtualnetworks",
+             "properties": {}},
+            {"id": f"{S}/microsoft.web/sites/app", "name": "app", "type": "microsoft.web/sites",
+             "properties": {"virtualNetworkSubnetId": f"{vnet}/subnets/sn"}}]
+
+    out = _summary_of(rows, "vnet", tmp_path, capsys)
+
+    assert "<--vnet-integration--" in out
+
+
+def test_a_seed_with_no_dependents_still_prints_its_dependencies(tmp_path, capsys):
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    rows = [{"id": f"{S}/microsoft.web/sites/app", "name": "app", "type": "microsoft.web/sites",
+             "properties": {"serverFarmId": f"{S}/microsoft.web/serverfarms/plan"}},
+            {"id": f"{S}/microsoft.web/serverfarms/plan", "name": "plan",
+             "type": "microsoft.web/serverfarms", "properties": {}}]
+
+    out = _summary_of(rows, "app", tmp_path, capsys)
+
+    assert "Depends on" in out and "plan" in out
+    assert "What depends on it" not in out
+
+
+def test_an_observer_is_labelled_as_observing_rather_than_depending(tmp_path, capsys):
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    st = f"{S}/microsoft.storage/storageaccounts/st"
+    rows = [{"id": st, "name": "st", "type": "microsoft.storage/storageaccounts",
+             "properties": {}},
+            {"id": f"{S}/microsoft.insights/metricalerts/alert", "name": "alert",
+             "type": "microsoft.insights/metricalerts", "properties": {"scopes": [st]}}]
+
+    out = _summary_of(rows, "st", tmp_path, capsys)
+
+    assert "observes" in out and "alert" in out

@@ -258,6 +258,14 @@ is the deliberate switch, and cloudmap reads whatever subscription `az` is point
 at. The read is read-only, but it is a read of live infrastructure, so point it on
 purpose. **Do not point this at data you are not authorized to read.**
 
+One asterisk on "read-only": AKS manifests are read through `az aks command
+invoke`, which Azure implements by starting a short-lived pod in the cluster to
+run the (read-only) `kubectl get` commands. Nothing of yours is modified, but an
+audit of the cluster's control plane will see that ephemeral pod.
+
+Tenant-wide enrichment runs its `az` reads concurrently; `CLOUDMAP_ENRICH_WORKERS`
+(default 12) tunes how many at once.
+
 ```
 cloudmap trace my-app --live --allow-live
 ```
@@ -280,7 +288,10 @@ everything".
                         subscription in the tenant)
   --enrich MODE         which web apps to deep-enrich for the dependencies that only
                         exist in app config. auto (default) = the seed alone when the
-                        seed is a web app, every app in scope when it is not;
+                        seed is a workload; every app in scope when the seed is a data
+                        service whose dependents hide in app config (Key Vault,
+                        storage, SQL, Redis, ...); the seed alone for compute and
+                        network resources, whose relationships ARM already returns;
                         all | seed | none
   --resolve-secrets     read KV secret values in-memory to see through KV-backed
                         connection strings (never printed or written)
