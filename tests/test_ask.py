@@ -343,18 +343,45 @@ def test_warnings_stay_quiet_on_a_clean_map():
     assert warnings(graph) == []
 
 
-def test_high_level_map_explains_itself_instead_of_stonewalling():
-    # The default trace writes the collapsed view, so this is the error people
-    # actually hit: the vault IS on their diagram, inside a "Key Vault" box, and
-    # "name a resource from this map" sends them hunting for a typo.
+def test_a_singleton_group_keeps_its_name_so_asking_about_it_just_works():
+    # Grouping is for readability, not anonymity: with one vault in the map,
+    # the box carries its real name and the question answers directly.
     graph, seed = _real()
+    collapsed = collapse_high_level(blast_radius(graph, seed), seed)
+    res = answer(collapsed, "what breaks if I touch kv-orders-dev")
+
+    assert not res.get("error")
+    assert res["subject_name"] == "kv-orders-dev"
+
+
+def test_high_level_map_explains_itself_instead_of_stonewalling():
+    # With SEVERAL vaults the box really is anonymous ("Key Vault ×2"), so this
+    # is the error people actually hit: the vault IS on their diagram, inside
+    # the group box, and "name a resource" sends them hunting for a typo.
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    rows = [
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
+         "properties": {"siteConfig": {"appSettings": [
+             {"name": "A", "value": "https://kv-orders-dev.vault.azure.net/"},
+             {"name": "B", "value": "https://kv-payments-dev.vault.azure.net/"}]}}},
+        {"id": f"{S}/microsoft.keyvault/vaults/kv-orders-dev", "name": "kv-orders-dev",
+         "type": "microsoft.keyvault/vaults",
+         "properties": {"vaultUri": "https://kv-orders-dev.vault.azure.net/"}},
+        {"id": f"{S}/microsoft.keyvault/vaults/kv-payments-dev", "name": "kv-payments-dev",
+         "type": "microsoft.keyvault/vaults",
+         "properties": {"vaultUri": "https://kv-payments-dev.vault.azure.net/"}},
+    ]
+    graph = build_graph(rows)
+    seed = find_seeds(graph, "web")[0]
     collapsed = collapse_high_level(blast_radius(graph, seed), seed)
     res = answer(collapsed, "what breaks if I touch kv-orders-dev")
 
     assert res["error"]
     assert "high-level view" in res["error"]
     assert "--level detail" in res["error"]
-    assert "Key Vault" in res["error"]            # names a group they can actually ask about
+    assert "Key Vault ×2" in res["error"]         # names a group they can actually ask about
+    grouped = next(n for n in collapsed.nodes.values() if "×2" in n.name)
+    assert "kv-orders-dev" in grouped.note        # the names survive in the note
 
 
 def test_high_level_map_warns_that_counts_are_per_type():

@@ -101,14 +101,25 @@ def collapse_high_level(graph, seed_id):
         if gkey == seed_id:
             new_nodes[gkey] = rep
         else:
-            label = rep.type.split("/", 1)[-1] if rep.external else friendly_type(rep.type)
-            if len(members) > 1:
-                label += f" ×{len(members)}"
+            role = rep.type.split("/", 1)[-1] if rep.external else friendly_type(rep.type)
+            # Grouping exists for readability, not anonymity: when a "group" has
+            # exactly one member, hiding its name buys nothing and costs the one
+            # thing the reader needs - WHICH vault, WHICH workspace this is.
+            if len(members) == 1:
+                label = rep.name or role
+            else:
+                label = f"{role} ×{len(members)}"
             # an external group keeps its members' reasons: "why is this unverified"
             # must not be lost to grouping either
             note = ""
             for m in members:
                 note = _merge_semis(note, graph.nodes[m].note)
+            if len(members) > 1:
+                # the instance names survive collapsing - on hover in the HTML
+                # viewer, in the drawio tooltip and in `ask` answers
+                shown = sorted(graph.nodes[m].name for m in members)[:8]
+                more = "" if len(members) <= 8 else f", +{len(members) - 8} more"
+                note = _merge_semis(note, "instances: " + ", ".join(shown) + more)
             new_nodes[gkey] = Node(id=gkey, name=label, type=rep.type,
                                    external=rep.external, note=note)
         distances[gkey] = dist

@@ -67,10 +67,10 @@ def _no_subject(graph, default):
         return default
     groups = sorted({n.name for n in graph.nodes.values()
                      if str(n.id).startswith(HIGH_LEVEL_PREFIXES)})
-    return ("This map is the high-level view: resources are grouped into one box per "
-            "type, so instance names do not exist in it. Ask about a group instead "
-            f"({', '.join(groups[:6])}{', ...' if len(groups) > 6 else ''}), or re-run "
-            "the trace with --level detail to keep instance names.")
+    return ("This map is the high-level view: types with several instances are "
+            "grouped into one box, so that name is not on it. Ask about a group "
+            f"instead ({', '.join(groups[:6])}{', ...' if len(groups) > 6 else ''}), "
+            "or re-run the trace with --level detail to keep every instance name.")
 
 
 def _error(message, query=None):

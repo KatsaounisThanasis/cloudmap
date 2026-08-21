@@ -142,7 +142,9 @@ def test_a_live_trace_seeded_by_arm_id_renders_valid_xml(tmp_path, monkeypatch):
     labels = {o.get("label") for o in ET.parse(tmp_path / "map.drawio").getroot().iter("object")}
 
     assert "web (sites)" in labels
-    assert "Key Vault (vaults)" in labels           # default view groups by type
+    # the default view groups by type, but a group of ONE keeps its name -
+    # a box saying just "Key Vault" answers the wrong question (which one?)
+    assert "kv-1 (vaults)" in labels
 
 
 def _capture_stubs(monkeypatch, rows, truncated=False):
