@@ -58,10 +58,10 @@ pip install -e ".[dev]" && pytest
 
 ## 60-second demo
 
-No Azure account needed - the repo ships a synthetic estate:
+No Azure account needed - a synthetic estate ships inside the package:
 
 ```
-cloudmap trace contoso-web --from fixtures/contoso.json -o contoso-web.drawio
+cloudmap trace contoso-web --from demo -o contoso-web.drawio
 ```
 
 ```text
@@ -207,7 +207,7 @@ going outward, and their value is the reverse view (`--direction up`).
 ## Ask a map questions
 
 ```
-$ cloudmap trace contoso-web --from fixtures/contoso.json --level detail --json out.json
+$ cloudmap trace contoso-web --from demo --level detail --json out.json
 $ cloudmap ask out.json "what breaks if I touch contoso-kv"
 Query: impact  ·  subject: contoso-kv
 2 resource(s) depend on contoso-kv - changing it can break them.

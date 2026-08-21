@@ -146,20 +146,38 @@ def test_a_failing_az_call_raises_with_its_stderr_attached(monkeypatch):
     assert "account show" in str(err.value)
 
 
-def test_the_subscription_pin_is_forced_onto_every_command_except_account_list(monkeypatch):
-    # The pin is what makes a cross-tenant subscription readable: `az account show`
-    # must be evaluated IN the pinned context, while `az account list` rejects the
-    # flag outright, so it is the one command that must not receive it.
+def test_the_subscription_pin_is_forced_onto_every_command_except_account_ones(monkeypatch):
+    # `account list` rejects --subscription outright, and `account show` must
+    # report the ACTUAL active subscription: injecting the pin there made the
+    # guard compare the pin to itself, so a mismatched pin surfaced as a bogus
+    # "you are not logged in" instead of "refusing the mismatch".
     monkeypatch.setenv("CLOUDMAP_ALLOW_SUBSCRIPTION", "PINNED-SUB")
     seen = _record_commands(monkeypatch)
 
     azure._az(["account", "list", "-o", "json"])
     azure._az(["account", "show", "-o", "json"])
-    azure._az(["graph", "query", "-q", "resources", "--subscriptions", "PINNED-SUB"])
+    azure._az(["webapp", "show", "-g", "rg", "-n", "app", "-o", "json"])
 
     assert "--subscription" not in seen[0]
-    assert seen[1][-2:] == ["--subscription", "PINNED-SUB"]
+    assert "--subscription" not in seen[1]
     assert seen[2][-2:] == ["--subscription", "PINNED-SUB"]
+
+
+def test_a_mismatched_pin_reports_the_mismatch_not_a_login_failure(monkeypatch):
+    # The end-to-end version of the above: the user pointed the pin at one
+    # subscription while az is on another. The old injection made this print
+    # "You are not logged in. Run az login" - the exact wrong advice.
+    import json as _json
+
+    monkeypatch.setenv("CLOUDMAP_ALLOW_SUBSCRIPTION", "SUB-PINNED")
+    monkeypatch.setattr(azure, "_az",
+                        lambda args: _json.dumps({"id": "SUB-ACTIVE", "tenantId": "t",
+                                                  "name": "dev"}))
+    with pytest.raises(SystemExit) as e:
+        azure._guard()
+
+    assert "Refusing the mismatch" in str(e.value)
+    assert "logged in" not in str(e.value)
 
 
 def test_an_unpinned_run_adds_no_subscription_flag(monkeypatch):

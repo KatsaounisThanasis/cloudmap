@@ -31,8 +31,11 @@ def _az(args):
     # If the user pinned a specific subscription (e.g. cross-tenant QA sub),
     # force the CLI to use that context for every command to avoid "Given: ''" errors.
     pin = os.environ.get("CLOUDMAP_ALLOW_SUBSCRIPTION", "").strip()
-    if pin and "--subscription" not in cmd and not (args[0] == "account" and len(args) > 1 and args[1] == "list"):
-        # az account list does not accept --subscription
+    # `account list` does not accept --subscription, and `account show` must
+    # report the ACTUAL active subscription: injecting the pin there made the
+    # guard compare the pin to itself, and a mismatched pin surfaced as a bogus
+    # "you are not logged in" - the exact wrong diagnosis for a security knob.
+    if pin and "--subscription" not in cmd and args[0] != "account":
         cmd += ["--subscription", pin]
             
     try:

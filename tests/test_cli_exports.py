@@ -328,3 +328,64 @@ def test_an_observer_is_labelled_as_observing_rather_than_depending(tmp_path, ca
     out = _summary_of(rows, "st", tmp_path, capsys)
 
     assert "observes" in out and "alert" in out
+
+
+# --- first-hour UX: the answers a new user actually hits --------------------------
+
+def test_the_built_in_demo_estate_traces_without_the_repo(tmp_path, capsys):
+    # `pip install cloudmap` ships no fixtures/ directory, so the README's
+    # 60-second demo used to end in a raw FileNotFoundError traceback. The
+    # packaged estate makes the first command work from anywhere.
+    rc = cli.main(["trace", "contoso-web", "--from", "demo",
+                   "-o", str(tmp_path / "demo.drawio")])
+
+    assert rc == 0
+    assert (tmp_path / "demo.drawio").exists()
+
+
+def test_a_missing_fixture_is_a_message_not_a_traceback(capsys):
+    rc = cli.main(["trace", "x", "--from", "/nowhere/at/all.json"])
+    err = capsys.readouterr().err
+
+    assert rc == 2
+    assert "does not exist" in err
+    assert "--from demo" in err          # and it offers the working alternative
+
+
+def test_asking_for_one_format_yields_exactly_that_format(tmp_path, monkeypatch):
+    # --json alone used to also drop a stray <name>.blast.drawio into the cwd.
+    monkeypatch.chdir(tmp_path)
+    rc = cli.main(["trace", "contoso-web", "--from", FIX,
+                   "--json", str(tmp_path / "only.json")])
+
+    assert rc == 0
+    assert [p.name for p in tmp_path.iterdir()] == ["only.json"]
+
+
+def test_an_ambiguous_name_shows_what_differs_and_how_to_proceed(tmp_path, capsys):
+    # Two apps named "app" printed two IDENTICAL "app (microsoft.web/sites)"
+    # lines - nothing to choose between and no way forward.
+    fixture = tmp_path / "amb.json"
+    fixture.write_text(json.dumps({"data": [
+        {"id": "/subscriptions/s/resourcegroups/rg1/providers/microsoft.web/sites/app",
+         "name": "app", "type": "microsoft.web/sites", "resourceGroup": "rg1"},
+        {"id": "/subscriptions/s/resourcegroups/rg2/providers/microsoft.web/sites/app",
+         "name": "app", "type": "microsoft.web/sites", "resourceGroup": "rg2"},
+    ]}), encoding="utf-8")
+
+    rc = cli.main(["trace", "app", "--from", str(fixture)])
+    err = capsys.readouterr().err
+
+    assert rc == 2
+    assert "rg1" in err and "rg2" in err          # the rows are now tellable apart
+    assert "/resourcegroups/rg1/" in err          # the full id is on screen
+    assert "full id" in err                       # and the way forward is stated
+
+
+def test_a_no_match_answer_says_what_was_searched(capsys):
+    rc = cli.main(["trace", "this-does-not-exist", "--from", FIX])
+    err = capsys.readouterr().err
+
+    assert rc == 2
+    assert "resources scanned" in err
+    assert "case-insensitive" in err

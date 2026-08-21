@@ -25,7 +25,8 @@ def answer(graph, question, allow_llm_intent=False, max_hops=None, model=None):
     if plan is None and allow_llm_intent:
         plan = llm_parse(question, graph, model=model)
     if plan is None:
-        result = _error("I could not turn that into a query over this map.")
+        result = _error("I could not turn that into a query over this map. "
+                        "(Questions are matched in English.)")
     else:
         result = _run(graph, plan, max_hops=max_hops)
     result["question"] = question

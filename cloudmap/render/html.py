@@ -138,6 +138,9 @@ _TEMPLATE = r"""<!doctype html>
   .sw{width:22px;height:0;border-top:1.6px solid var(--edge)}
   .sw.model{border-top:2px dashed var(--model)}
   .sw.box{width:12px;height:12px;border:2px solid var(--seed);border-radius:3px}
+  .sw.observes{border-top:1.6px dashed #9aa4ae}
+  .sw.sec{border-top:1.6px solid #d18f00}
+  .sw.data{border-top:1.6px solid #1a7f37}
   aside{width:340px;background:var(--card);border-left:1px solid var(--line);background:var(--card);
         padding:18px;overflow:auto}
   aside.empty .detail{display:none}
@@ -236,11 +239,14 @@ _TEMPLATE = r"""<!doctype html>
     <div class="legend">
       <span class="lg"><span class="sw"></span> verified</span>
       <span class="lg"><span class="sw model"></span> model guess</span>
+      <span class="lg"><span class="sw observes"></span> observes</span>
+      <span class="lg"><span class="sw sec"></span> security</span>
+      <span class="lg"><span class="sw data"></span> data</span>
       <span class="lg"><span class="sw box"></span> seed</span>
     </div>
   </div>
   <aside id="panel" class="empty">
-    <div class="hint">Click a resource to focus its blast radius. Scroll to zoom, drag to pan.</div>
+    <div class="hint">Click a resource to focus its blast radius - a grouped box (×N) lists its instances there. Scroll to zoom, drag to pan.</div>
     <div class="detail"></div>
   </aside>
 </div>
@@ -280,13 +286,20 @@ function catInfo(type){
 
 document.getElementById("seedName").textContent="— "+DATA.seedName;
 (function(){const m=DATA.meta,b=document.getElementById("badges");
-  const add=(txt,cls,title)=>{const s=document.createElement("span");s.className="badge "+(cls||"");s.textContent=txt;if(title)s.title=title;b.appendChild(s);};
+  const add=(txt,cls,title,onclick)=>{const s=document.createElement("span");s.className="badge "+(cls||"");s.textContent=txt;if(title)s.title=title;if(onclick){s.style.cursor="pointer";s.onclick=onclick;}b.appendChild(s);return s;};
   add(m.nodes+" resources");add(m.edges+" dependencies");
   if(m.external)add(m.external+" external","warn");
   if(m.model_edges)add(m.model_edges+" model","warn");
-  // why it is incomplete travels with the badge, so the reader never has to guess
+  // Why it is incomplete must be one click away, not hidden behind a hover
+  // nobody knows exists: the badge opens the explanation in the side panel.
   const why=[].concat(m.truncated?["scan hit the pagination cap"]:[],m.read_gaps||[],m.blind_spots||[]);
-  add(m.complete?"complete":"INCOMPLETE",m.complete?"ok":"warn",why.join("\n\n"));
+  if(m.complete){add("complete","ok");}
+  else{add("INCOMPLETE ⓘ","warn",why.join("\n\n"),()=>{
+    document.getElementById("panel").innerHTML =
+      "<h3>Why this map is incomplete</h3>"+
+      why.map(w=>"<p>"+esc(w)+"</p>").join("")+
+      "<p class=\"hint\">Incomplete means known-missing, not wrong: these are the reads the scan could not or did not make.</p>";
+  });}
 })();
 
 // ---- layout: radial blast ----
@@ -395,7 +408,7 @@ DATA.nodes.forEach(n=>{
   if(icon){
     g.appendChild(icon);
     const t1=el("text",{x:NW/2,y:ICON+22,class:"nname","text-anchor":"middle"});
-    t1.textContent=n.name;g.appendChild(t1);
+    t1.textContent=n.name.length>24?n.name.slice(0,23)+"…":n.name;g.appendChild(t1);  // full name in the tooltip
     const t2=el("text",{x:NW/2,y:ICON+37,class:"ntype","text-anchor":"middle"});
     t2.textContent=shortType(n.type);g.appendChild(t2);
   }else{

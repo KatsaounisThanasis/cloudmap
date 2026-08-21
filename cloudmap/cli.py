@@ -36,7 +36,7 @@ def main(argv=None):
     t = sub.add_parser("trace", help="trace a component's blast radius")
     t.add_argument("name", help="resource name (or substring) to seed from")
     src = t.add_mutually_exclusive_group(required=True)
-    src.add_argument("--from", dest="fixture", help="path to a Resource Graph JSON fixture")
+    src.add_argument("--from", dest="fixture", help="path to a Resource Graph JSON fixture, or \"demo\" for the built-in synthetic estate")
     src.add_argument("--live", action="store_true", help="query live Azure (guarded, opt-in)")
     t.add_argument("--allow-live", action="store_true", help="required together with --live")
     t.add_argument("--single-sub", action="store_true",
@@ -125,7 +125,22 @@ def _cmd_trace(args):
     else:
         from .adapters import load_graph
         resources = []
-        graph = load_graph(args.fixture)   # auto-detects raw export vs neutral cloudmap graph
+        fixture = args.fixture
+        if fixture == "demo":
+            # the packaged synthetic estate, so `pip install cloudmap` can try the
+            # tool in one command without cloning the repo for fixtures/
+            import importlib.resources as ir
+            fixture = str(ir.files("cloudmap").joinpath("data/contoso.json"))
+        try:
+            graph = load_graph(fixture)   # auto-detects raw export vs neutral cloudmap graph
+        except FileNotFoundError:
+            print(f"cloudmap: fixture '{args.fixture}' does not exist. Point --from at a "
+                  f"capture/fixture file, or try the built-in demo estate: --from demo",
+                  file=sys.stderr)
+            return 2
+        except ValueError as e:            # json.JSONDecodeError is a ValueError
+            print(f"cloudmap: '{args.fixture}' is not valid JSON ({e}).", file=sys.stderr)
+            return 2
         # A re-traced capture keeps its own honesty flags: a scan that was
         # truncated at capture time must not become a map that claims
         # completeness just because it was re-read from disk.
@@ -135,12 +150,24 @@ def _cmd_trace(args):
 
     seeds = find_seeds(graph, args.name)
     if not seeds:
-        print(f"No resource matched '{args.name}'.", file=sys.stderr)
+        scope = (("this subscription" if args.single_sub else "every enabled subscription")
+                 if args.live else f"'{args.fixture}'")
+        print(f"No resource matched '{args.name}' among the {len(graph.nodes)} resources "
+              f"scanned in {scope}. Matching is case-insensitive and substrings count. "
+              + ("If it lives in another subscription, drop --single-sub."
+                 if args.live and args.single_sub else ""), file=sys.stderr)
         return 2
     if len(seeds) > 1:
-        print(f"'{args.name}' is ambiguous. Matches:", file=sys.stderr)
-        for s in seeds:
-            print(f"  - {graph.nodes[s].name}  ({graph.nodes[s].type})", file=sys.stderr)
+        # Same name, same type is the common case (one app per environment), so
+        # the name+type line was two identical rows: show what actually differs
+        # and say how to proceed.
+        print(f"'{args.name}' matches {len(seeds)} resources:", file=sys.stderr)
+        for sid in seeds:
+            n = graph.nodes[sid]
+            rg = f"  rg: {n.resource_group}" if n.resource_group else ""
+            print(f"  - {n.name}  ({n.type}){rg}\n      {sid}", file=sys.stderr)
+        print("Re-run with the full id as the seed to pick one, e.g.:\n"
+              f"  cloudmap trace \"{seeds[0]}\" ...", file=sys.stderr)
         return 2
     seed = seeds[0]
 
@@ -206,10 +233,16 @@ def _export_outputs(sub, seed, args, meta):
         args.html_out = args.html_out or os.path.join(target_dir, f"{name}.html")
         args.csv_out = args.csv_out or os.path.join(target_dir, f"{name}.csv")
 
-    out = args.out or f"{name}.blast.drawio"
-    _ensure_parent(out)
-    with open(out, "w", encoding="utf-8") as f:
-        f.write(to_drawio(sub, seed))
+    # draw.io is the default artifact, not a mandatory one: if the user asked
+    # for specific format(s) and not for draw.io, do not surprise them with a
+    # stray .blast.drawio in the working directory.
+    other_asked = any([args.mermaid, args.json_out, args.html_out,
+                       getattr(args, "csv_out", None)])
+    out = args.out or (None if other_asked else f"{name}.blast.drawio")
+    if out:
+        _ensure_parent(out)
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(to_drawio(sub, seed))
     if args.mermaid:
         _ensure_parent(args.mermaid)
         with open(args.mermaid, "w", encoding="utf-8") as f:
@@ -627,7 +660,8 @@ def _print_summary(graph, seed, out, truncated=False, blind_spots=(), single_sub
         if up:
             console.print(Panel(_build_tree(seed, set(), upward=True),
                                 title=f"What depends on it ({len(up)})", border_style="magenta"))
-        console.print(f"🔗 [bold]draw.io:[/bold] {out}\n")
+        if out:
+            console.print(f"🔗 [bold]draw.io:[/bold] {out}\n")
     else:
         print(f"Seed: {n.name} ({n.type})")
         print(f"Blast radius: {len(graph.nodes)} resources "
@@ -636,7 +670,8 @@ def _print_summary(graph, seed, out, truncated=False, blind_spots=(), single_sub
             print("INCOMPLETE: scan hit the pagination cap - some resources/edges are missing.")
         for spot in blind_spots:
             print(f"BLIND SPOT: {spot}")
-        print(f"draw.io: {out}\n")
+        if out:
+            print(f"draw.io: {out}\n")
         for e in graph.edges:
             tgt = graph.nodes[e.target]
             tag = "  [external]" if tgt.external else ""
