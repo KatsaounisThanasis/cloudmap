@@ -168,10 +168,26 @@ identity RBAC on it, with the role assignments as proof.
 
 ## What it maps
 
-App Service / Functions, Container Apps (+ environments), AKS, App Gateway, API
-Management, Key Vault, Storage, SQL / PostgreSQL / MySQL / Cosmos, Redis, Service
-Bus, Event Hub, Cognitive Search, Azure OpenAI, Container Registry, Log Analytics,
-App Insights, VNets, Private Endpoints and managed identities.
+**Any Azure resource type can be a seed.** The scan is not filtered by type, and
+resources are mapped at two levels:
+
+- **Typed rules** for the services where the relationship has a specific meaning:
+  App Service / Functions, Container Apps (+ environments), AKS, App Gateway, API
+  Management, Key Vault, Storage, SQL / PostgreSQL / MySQL / Cosmos, Redis, Service
+  Bus, Event Hub, Cognitive Search, Azure OpenAI, Container Registry, ML workspaces,
+  Log Analytics, App Insights, VNets, Private Endpoints and managed identities.
+  These produce edges like `hosted-on`, `reads-secret`, `pulls-image`, `routes-to`.
+- **A generic ARM-reference pass** for everything else: any resolvable resource id
+  found in a resource's properties becomes a `references` edge, with the property
+  path as proof. So a type cloudmap has never heard of is still mapped, still
+  deterministically, still with evidence.
+
+RBAC edges (`role: Key Vault Secrets User`) are extracted tenant-wide, so
+"who has access to this" works for any resource that can be a role scope.
+
+Depth is honest about itself: apps and clusters have rich outbound edges because
+their config names other resources. Infrastructure resources are usually leaves
+going outward, and their value is the reverse view (`--direction up`).
 
 ## How it works
 

@@ -22,16 +22,6 @@ import pytest
 from cloudmap import cli, interactive
 from cloudmap.ingest import azure
 
-WORKLOAD_TYPES = (
-    "microsoft.web/sites",
-    "microsoft.containerservice/managedclusters",
-    "microsoft.app/containerapps",
-    "microsoft.compute/virtualmachines",
-    "microsoft.apimanagement/service",
-    "microsoft.sql/servers/databases",
-    "microsoft.dbforpostgresql/flexibleservers",
-)
-
 
 @pytest.fixture(autouse=True)
 def _no_real_az(monkeypatch):
@@ -220,21 +210,36 @@ def test_the_workload_query_is_scoped_to_the_chosen_subscription(wizard):
     assert subs == ["SUB-1"]
 
 
-def test_every_supported_seed_workload_type_is_queried(wizard):
+def test_the_wizard_does_not_restrict_the_seed_to_a_type_allowlist(wizard):
+    # The engine scans every type and the generic pass maps types with no
+    # hand-written rule, so a wizard menu built from a fixed type list would
+    # advertise a smaller tool than the one that ships.
     state = wizard.install(_answers(resource={"id": _row("a")["id"], "name": "a"}), [_row("a")])
 
     interactive.interactive_main()
     kql, _ = state.graph_calls[0]
 
-    for rtype in WORKLOAD_TYPES:
-        assert f"'{rtype}'" in kql
+    assert "where type" not in kql.lower()
+    assert "microsoft." not in kql.lower()
 
 
-def test_a_subscription_with_no_workloads_exits_cleanly(wizard):
+def test_any_resource_type_can_be_picked_as_a_seed(wizard):
+    rows = [_row("vault", rtype="microsoft.keyvault/vaults"),
+            _row("some-thing", rtype="microsoft.madeup/widgets")]
+    state = wizard.install(_answers(resource={"id": rows[1]["id"], "name": "some-thing"}), rows)
+
+    assert interactive.interactive_main() == 0
+    offered = [c.value["name"] for c in state.prompts.choices_for("resource to trace")]
+
+    assert offered == ["vault", "some-thing"]      # an unknown type is offered too
+    assert state.argv[:2] == ["trace", rows[1]["id"]]
+
+
+def test_a_subscription_with_no_resources_exits_cleanly(wizard):
     wizard.install([{"id": "SUB-1", "tenantId": "t-1"}], [])
 
     assert interactive.interactive_main() == 0
-    assert FakeConsole.last.said("No workloads")
+    assert FakeConsole.last.said("No resources")
 
 
 def test_a_failed_workload_query_exits_non_zero(wizard, monkeypatch):

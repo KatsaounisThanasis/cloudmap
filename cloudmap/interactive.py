@@ -10,6 +10,37 @@ try:
 except ImportError:
     questionary = None
 
+# A seed can be any resource type, so the icon map is a readability aid for the
+# common ones rather than a list of what is supported. Unknown types get the
+# neutral box and trace exactly the same.
+_ICONS = {
+    "microsoft.web/sites": "🌐",
+    "microsoft.app/containerapps": "📦",
+    "microsoft.containerservice/managedclusters": "☸️ ",
+    "microsoft.keyvault/vaults": "🔐",
+    "microsoft.storage/storageaccounts": "💾",
+    "microsoft.sql/servers": "🗄️ ",
+    "microsoft.sql/servers/databases": "🗄️ ",
+    "microsoft.dbforpostgresql/flexibleservers": "🗄️ ",
+    "microsoft.dbformysql/flexibleservers": "🗄️ ",
+    "microsoft.documentdb/databaseaccounts": "🗄️ ",
+    "microsoft.cache/redis": "⚡",
+    "microsoft.servicebus/namespaces": "📨",
+    "microsoft.eventhub/namespaces": "📨",
+    "microsoft.containerregistry/registries": "🐳",
+    "microsoft.cognitiveservices/accounts": "🧠",
+    "microsoft.machinelearningservices/workspaces": "🧠",
+    "microsoft.search/searchservices": "🔎",
+    "microsoft.network/virtualnetworks": "🌐",
+    "microsoft.network/privateendpoints": "🔌",
+    "microsoft.compute/virtualmachines": "🖥️ ",
+    "microsoft.apimanagement/service": "🚪",
+    "microsoft.network/applicationgateways": "🚪",
+    "microsoft.operationalinsights/workspaces": "📊",
+    "microsoft.insights/components": "📊",
+}
+
+
 def interactive_main():
     if questionary is None:
         print("Interactive mode requires 'questionary' and 'rich'. Install with: pip install questionary rich", file=sys.stderr)
@@ -74,34 +105,16 @@ def interactive_main():
     # Globally pin the subscription so _graph_paged and _az use it correctly across tenants
     os.environ["CLOUDMAP_ALLOW_SUBSCRIPTION"] = sub_id
     
-    # 2. Get resources (Optimized ARG query)
-    query = """
-    Resources 
-    | where type in (
-        'microsoft.web/sites', 
-        'microsoft.containerservice/managedclusters', 
-        'microsoft.app/containerapps',
-        'microsoft.compute/virtualmachines',
-        'microsoft.apimanagement/service',
-        'microsoft.sql/servers/databases',
-        'microsoft.dbforpostgresql/flexibleservers',
-        'microsoft.storage/storageaccounts',
-        'microsoft.keyvault/vaults',
-        'microsoft.logic/workflows',
-        'microsoft.servicebus/namespaces',
-        'microsoft.eventhub/namespaces',
-        'microsoft.cognitiveservices/accounts',
-        'microsoft.machinelearningservices/workspaces',
-        'microsoft.search/searchservices',
-        'microsoft.documentdb/databaseaccounts',
-        'microsoft.cache/redis'
-    ) 
-    | project id, name, type, resourceGroup 
-    | order by name asc
-    """
-    query = query.replace('\n', ' ').strip()
+    # 2. Get resources. Deliberately NOT type-filtered: the engine scans every
+    # type and the generic ARM-reference pass maps types that have no
+    # hand-written rule, so any resource is a legitimate seed. A wizard that
+    # offered a fixed menu would advertise a smaller tool than the one that
+    # ships. Resources are grouped by type so the list stays scannable.
+    query = ("Resources "
+             "| project id, name, type, resourceGroup "
+             "| order by type asc, name asc")
     
-    with console.status("[bold cyan]Scanning for Workloads via Azure Resource Graph...[/bold cyan]", spinner="dots"):
+    with console.status("[bold cyan]Scanning resources via Azure Resource Graph...[/bold cyan]", spinner="dots"):
         try:
             data, _ = _graph_paged(query, [sub_id])
         except Exception as e:
@@ -109,7 +122,7 @@ def interactive_main():
             return 1
                 
     if not data:
-        console.print("[bold yellow]No workloads (Web Apps / AKS / Container Apps) found in this subscription.[/bold yellow]")
+        console.print("[bold yellow]No resources found in this subscription.[/bold yellow]")
         return 0
         
     # 2.5 Select Resource Group (Cascading)
@@ -140,7 +153,7 @@ def interactive_main():
     res_choices = []
     for r in data:
         rtype = r['type'].split('/')[-1]
-        icon = "☸️ " if "managedclusters" in r['type'].lower() else ("🌐" if "sites" in r['type'].lower() else "📦")
+        icon = _ICONS.get(r['type'].lower(), "📦")
         # Format: Icon  Name   (Type)   [RG] (only show RG dim if ALL was selected)
         rg_dim = f" [dim]RG: {r['resourceGroup']}[/dim]" if selected_rg == "ALL" else ""
         display = f"{icon} {r['name'].ljust(30)} {rtype.ljust(18)}{rg_dim}"
