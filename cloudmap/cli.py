@@ -51,9 +51,11 @@ def main(argv=None):
     t.add_argument("--enrich", choices=["auto", "seed", "all", "none"], default="auto",
                    help="live: which web apps to deep-enrich for the dependencies that live "
                         "in app config (Key Vault refs, connection strings, RBAC). "
-                        "auto = the seed alone when the seed is a web app, every app in scope "
-                        "when it is not (only other apps' config can reveal what depends on a "
-                        "shared resource); all = every app in scope; none = ARM topology only")
+                        "auto = the seed alone when the seed is a workload; every app in scope "
+                        "when the seed is a data service whose dependents hide in app config "
+                        "(Key Vault, storage, SQL, Redis, ...); the seed alone for compute and "
+                        "network resources, whose relationships ARM already returns. "
+                        "all = every app in scope; none = ARM topology only")
     t.add_argument("--level", choices=["high", "detail"], default="high",
                    help="high = architecture view grouped by resource type (default); "
                         "detail = every instance with its real name")
@@ -226,7 +228,9 @@ def _export_outputs(sub, seed, args, meta):
         with open(args.csv_out, "w", encoding="utf-8") as f:
             f.write(to_csv(sub, seed, meta=meta))
 
-    _print_summary(sub, seed, out, truncated=meta.get("truncated", False), blind_spots=meta.get("blind_spots", []))
+    _print_summary(sub, seed, out, truncated=meta.get("truncated", False),
+                   blind_spots=meta.get("blind_spots", []),
+                   single_sub=bool(getattr(args, "single_sub", False)))
 
 
 _WEBAPP = "microsoft.web/sites"
@@ -237,6 +241,35 @@ _AKS = "microsoft.containerservice/managedclusters"
 # template, so there is nothing extra to fetch.
 _CONFIG_WORKLOADS = (_WEBAPP, "microsoft.app/containerapps", _AKS)
 
+# Seeds whose DEPENDENTS are typically named only inside application config, so
+# reading every app in scope is the only way to find them. A tenant-wide pass
+# costs one `az` round-trip per app, so it is spent here and nowhere else.
+#
+# Compute and network resources are deliberately absent: a VM's or a VNet's
+# dependents are already in Resource Graph (a NIC's subnet, an app's
+# virtualNetworkSubnetId), so enriching hundreds of apps to trace one VM buys
+# nothing. Found the hard way - tracing a VM used to enrich 289 web apps and run
+# for minutes before printing edges that were all in the ARM data already.
+_CONFIG_REFERENCED_TYPES = frozenset({
+    "microsoft.keyvault/vaults",
+    "microsoft.storage/storageaccounts",
+    "microsoft.sql/servers",
+    "microsoft.sql/servers/databases",
+    "microsoft.dbforpostgresql/flexibleservers",
+    "microsoft.dbformysql/flexibleservers",
+    "microsoft.documentdb/databaseaccounts",
+    "microsoft.cache/redis",
+    "microsoft.servicebus/namespaces",
+    "microsoft.eventhub/namespaces",
+    "microsoft.search/searchservices",
+    "microsoft.cognitiveservices/accounts",
+    "microsoft.containerregistry/registries",
+    "microsoft.insights/components",
+    "microsoft.operationalinsights/workspaces",
+    "microsoft.web/sites",
+    "microsoft.app/containerapps",
+})
+
 
 def _enrichment_targets(graph, seed, mode, direction):
     """Which workloads to deep-enrich, and which stay a blind spot.
@@ -244,22 +277,25 @@ def _enrichment_targets(graph, seed, mode, direction):
     An app's config-level dependencies exist nowhere until that app is enriched,
     but enriching a whole tenant on every trace costs an `az` round-trip per app.
     So `auto` spends the calls where the answer actually needs them: a web-app
-    seed's own config already yields its downward view, whereas a shared-resource
-    seed (Key Vault, database, plan) can only learn its dependents from the
-    config of the apps pointing at it.
+    seed's own config already yields its downward view, whereas a shared data
+    service (Key Vault, database, registry) can only learn its dependents from
+    the config of the apps pointing at it.
     """
     workloads = [n for n in graph.nodes.values() if n.type in (_WEBAPP, _AKS)]
     seed_only = [n for n in workloads if n.id == seed]
-    
+    seed_type = graph.nodes[seed].type if seed in graph.nodes else ""
+
     if mode == "none":
         chosen = []
     elif mode == "all":
         chosen = workloads
-    elif mode == "seed" or seed_only and direction != "up":
+    elif mode == "seed" or (seed_only and direction != "up"):
         chosen = seed_only
+    elif seed_type in _CONFIG_REFERENCED_TYPES:
+        chosen = workloads               # its dependents hide in app config
     else:
-        chosen = workloads
-        
+        chosen = seed_only               # compute/network: ARM already has it
+
     picked = {n.id for n in chosen}
     return chosen, [n for n in workloads if n.id not in picked]
 
@@ -329,12 +365,24 @@ def _enrich_live(args, graph, seed, resources):
     # An un-enriched app is a known class of missing edge - say so rather than let
     # an empty upward view read as "nothing depends on this".
     if skipped and args.direction != "down":
-        blind_spots.append(
-            f"{len(skipped)} workload(s) in scope were not deep-enriched, so anything that "
-            f"depends on this resource through config (Key Vault references, connection "
-            f"strings, hostnames) cannot appear as an inbound edge. "
-            f"Re-run with --enrich all to close this gap."
-        )
+        # Only claim this matters when it actually does. A Key Vault's dependents
+        # really do hide in app config; a VNet's are already in the ARM data, so
+        # telling its user to enrich 289 apps would send them off for minutes to
+        # learn nothing.
+        if graph.nodes[seed].type in _CONFIG_REFERENCED_TYPES:
+            blind_spots.append(
+                f"{len(skipped)} workload(s) in scope were not deep-enriched, so anything that "
+                f"depends on this resource through config (Key Vault references, connection "
+                f"strings, hostnames) cannot appear as an inbound edge. "
+                f"Re-run with --enrich all to close this gap."
+            )
+        else:
+            blind_spots.append(
+                f"{len(skipped)} workload(s) in scope were not deep-enriched. For this "
+                f"resource type that is usually fine - its relationships are in the ARM "
+                f"data - but an application naming it in free-text config would be missed. "
+                f"Use --enrich all if you need that certainty."
+            )
     return graph, read_gaps, blind_spots
 
 
@@ -374,6 +422,19 @@ def _cmd_capture(args):
     else:
         from .scrub import scrub
         resources, stats = scrub(resources)
+
+    # Kubernetes secret material is read in-memory so the extractors can spot a
+    # connection string inside a secret, and it is dropped here unconditionally -
+    # including under --no-scrub. A capture is a file people commit; the one
+    # field that carries decoded secrets has no business in it, and the scrub
+    # pass deleting it too is belt and braces rather than the only guard.
+    dropped = 0
+    for r in resources:
+        if isinstance(r, dict) and r.pop("kubernetes_text", None) is not None:
+            dropped += 1
+    if dropped:
+        print(f"Dropped Kubernetes manifest text from {dropped} cluster(s): it can carry "
+              f"decoded secret values and is never written to an export.", file=sys.stderr)
 
     _write_export(args.out, resources, scrubbed=not args.no_scrub,
                   meta={"truncated": truncated, "enriched": args.enrich == "all"})
@@ -483,7 +544,7 @@ def _ensure_parent(path):
         os.makedirs(parent, exist_ok=True)
 
 
-def _print_summary(graph, seed, out, truncated=False, blind_spots=()):
+def _print_summary(graph, seed, out, truncated=False, blind_spots=(), single_sub=False):
     try:
         from rich.console import Console
         from rich.panel import Panel
@@ -510,35 +571,62 @@ def _print_summary(graph, seed, out, truncated=False, blind_spots=()):
             if "vault" in t: return "🔐"
             return "📦"
 
-        def _build_tree(node_id, seen):
-            node = graph.nodes[node_id]
+        def _label(node):
             color = "cyan" if not node.external else "dim white"
             txt = f"[{color}]{_get_icon(node.type)} {node.name}[/{color}]"
-            if node.external: txt += " [italic dim](external)[/italic dim]"
-            
-            tree = Tree(txt)
+            return txt + (" [italic dim](external)[/italic dim]" if node.external else "")
+
+        def _kind_colour(kind):
+            if "secret" in kind: return "yellow"
+            if "connects" in kind: return "green"
+            if "auth" in kind: return "magenta"
+            if "observes" in kind: return "dim white"
+            return "blue"
+
+        def _build_tree(node_id, seen, upward):
+            """Walk one direction only. Upward reads "what depends on me", so its
+            arrows are drawn pointing back at the parent - printing them like
+            downstream edges would state the dependency backwards."""
+            tree = Tree(_label(graph.nodes[node_id]))
             seen.add(node_id)
-            
             for e in graph.edges:
-                if e.source == node_id:
-                    kind_color = "blue"
-                    if "secret" in e.kind: kind_color = "yellow"
-                    elif "connects" in e.kind: kind_color = "green"
-                    elif "auth" in e.kind: kind_color = "magenta"
-                    
-                    lbl = f"[{kind_color}]--{e.kind}-->[/{kind_color}]"
-                    
-                    if e.target in seen:
-                        tgt = graph.nodes[e.target]
-                        tree.add(f"{lbl} [dim]{tgt.name} (cycle)[/dim]")
-                    else:
-                        branch = _build_tree(e.target, set(seen))
-                        branch.label = f"{lbl} " + str(branch.label)
-                        tree.add(branch)
+                nxt = e.source if upward else e.target
+                if (e.target if upward else e.source) != node_id:
+                    continue
+                lbl = (f"[{_kind_colour(e.kind)}]<--{e.kind}--[/{_kind_colour(e.kind)}]" if upward
+                       else f"[{_kind_colour(e.kind)}]--{e.kind}-->[/{_kind_colour(e.kind)}]")
+                if nxt in seen:
+                    tree.add(f"{lbl} [dim]{graph.nodes[nxt].name} (cycle)[/dim]")
+                else:
+                    branch = _build_tree(nxt, set(seen), upward)
+                    branch.label = f"{lbl} " + str(branch.label)
+                    tree.add(branch)
             return tree
 
-        tree = _build_tree(seed, set())
-        console.print(Panel(tree, title="Dependency Graph", border_style="blue"))
+        # Both directions get their own panel. Tracing shared infrastructure (a
+        # VNet, a Key Vault, a plan) puts everything in the upward half, so a
+        # single downward tree used to print two branches under a headline that
+        # counted seven resources.
+        down = [e for e in graph.edges if e.source == seed]
+        up = [e for e in graph.edges if e.target == seed]
+        if not graph.edges:
+            # A lonely one-node map is a real answer, but an unexplained one is
+            # indistinguishable from a broken tool. Say what could hide it.
+            console.print(
+                "[bold yellow]No dependencies found.[/bold yellow] Nothing in the scanned "
+                "scope references this resource and it references nothing scanned. Worth "
+                "checking: whether its dependents live in another subscription (this scan "
+                "was scoped), and whether --enrich all would reveal a config-only reference."
+                if single_sub else
+                "[bold yellow]No dependencies found.[/bold yellow] Nothing in the scanned "
+                "scope references this resource and it references nothing scanned."
+            )
+        if down or not up:
+            console.print(Panel(_build_tree(seed, set(), upward=False),
+                                title=f"Depends on ({len(down)})", border_style="blue"))
+        if up:
+            console.print(Panel(_build_tree(seed, set(), upward=True),
+                                title=f"What depends on it ({len(up)})", border_style="magenta"))
         console.print(f"🔗 [bold]draw.io:[/bold] {out}\n")
     else:
         print(f"Seed: {n.name} ({n.type})")

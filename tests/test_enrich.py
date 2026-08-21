@@ -11,8 +11,11 @@ off as an empty result.
 
 import json
 
+import pytest
+
 from cloudmap.ask import warnings
 from cloudmap.cli import _enrichment_targets
+from cloudmap.graph import build_graph, find_seeds
 from cloudmap.ingest.azure import enrich_webapps
 from cloudmap.model import Edge, Graph, Node
 from cloudmap.render.json_out import to_json
@@ -93,3 +96,102 @@ def test_bulk_enrich_attributes_each_read_gap_to_its_app():
 
 def test_bulk_enrich_of_nothing_touches_nothing():
     assert enrich_webapps([])["enriched"] == []
+
+
+# --- what `auto` decides to enrich, and why ---------------------------------------
+
+def _estate_with_many_apps(n=50):
+    S = "/subscriptions/s/resourcegroups/rg/providers"
+    rows = [{"id": f"{S}/microsoft.keyvault/vaults/kv", "name": "kv",
+             "type": "microsoft.keyvault/vaults",
+             "properties": {"vaultUri": "https://kv.vault.azure.net/"}},
+            {"id": f"{S}/microsoft.compute/virtualmachines/vm", "name": "vm",
+             "type": "microsoft.compute/virtualmachines", "properties": {}},
+            {"id": f"{S}/microsoft.network/virtualnetworks/vnet", "name": "vnet",
+             "type": "microsoft.network/virtualnetworks", "properties": {}}]
+    for i in range(n):
+        rows.append({"id": f"{S}/microsoft.web/sites/app-{i}", "name": f"app-{i}",
+                     "type": "microsoft.web/sites", "properties": {}})
+    return rows
+
+
+@pytest.mark.parametrize("seed_name,expect_fanout", [
+    ("kv", True),      # a vault's dependents really do hide in app config
+    ("vm", False),     # a VM's relationships are already in the ARM data
+    ("vnet", False),   # ditto a VNet's
+])
+def test_auto_only_reads_every_app_when_the_answer_needs_it(seed_name, expect_fanout):
+    """Regression from a live run: tracing a VM used to deep-enrich all 289 web
+    apps in the subscription and take minutes, to print edges that were in the
+    ARM data the whole time. The same fan-out on a Key Vault is the only way to
+    learn who reads it, so the cost is spent there and nowhere else."""
+    from cloudmap.cli import _enrichment_targets
+
+    graph = build_graph(_estate_with_many_apps())
+    seed = find_seeds(graph, seed_name)[0]
+    chosen, skipped = _enrichment_targets(graph, seed, "auto", "up")
+
+    assert (len(chosen) > 1) is expect_fanout
+    assert len(chosen) + len(skipped) == 50      # every app is accounted for
+
+
+def test_a_workload_seed_still_only_enriches_itself():
+    from cloudmap.cli import _enrichment_targets
+
+    graph = build_graph(_estate_with_many_apps())
+    seed = find_seeds(graph, "app-7")[0]
+    chosen, _ = _enrichment_targets(graph, seed, "auto", "down")
+
+    assert [n.name for n in chosen] == ["app-7"]
+
+
+def test_enrich_all_still_overrides_the_heuristic():
+    from cloudmap.cli import _enrichment_targets
+
+    graph = build_graph(_estate_with_many_apps())
+    seed = find_seeds(graph, "vm")[0]
+    chosen, skipped = _enrichment_targets(graph, seed, "all", "up")
+
+    assert len(chosen) == 50 and skipped == []
+
+
+def test_a_capture_never_writes_kubernetes_secret_material(tmp_path, monkeypatch, capsys):
+    """`kubernetes_text` holds DECODED Kubernetes secret values, kept only so the
+    extractors can spot a connection string inside one. A capture is a file
+    people commit, so the field is dropped before writing - under --no-scrub too,
+    where the scrub pass that also deletes it never runs."""
+    import json as _json
+
+    from cloudmap import cli
+
+    rows = [{"id": "/subscriptions/s/x/aks", "name": "aks", "type":
+             "microsoft.containerservice/managedclusters",
+             "kubernetes_text": "sec_decoded:AccountKey=REALSECRETVALUE123",
+             "properties": {}}]
+    monkeypatch.setattr("cloudmap.ingest.azure.query_live", lambda **k: (rows, False))
+    monkeypatch.setattr("cloudmap.ingest.azure.enrich_webapps",
+                        lambda *a, **k: {"role_assignments": [], "diagnostics": [],
+                                         "errors": [], "enriched": []})
+    monkeypatch.setattr("cloudmap.ingest.azure.enrich_aks_clusters",
+                        lambda *a, **k: {"errors": []})
+
+    out = tmp_path / "capture.json"
+    rc = cli.main(["capture", "--allow-live", "--single-sub", "--no-scrub", "-o", str(out)])
+    written = out.read_text()
+
+    assert rc == 0
+    assert "REALSECRETVALUE123" not in written
+    assert "kubernetes_text" not in _json.loads(written)["data"][0]
+    assert "never written to an export" in capsys.readouterr().err
+
+
+def test_enrichment_concurrency_is_env_tunable(monkeypatch):
+    from cloudmap.ingest.azure import _enrich_workers
+
+    assert _enrich_workers() == 12                       # the default
+    monkeypatch.setenv("CLOUDMAP_ENRICH_WORKERS", "24")
+    assert _enrich_workers() == 24
+    monkeypatch.setenv("CLOUDMAP_ENRICH_WORKERS", "0")   # nonsense clamps to 1
+    assert _enrich_workers() == 1
+    monkeypatch.setenv("CLOUDMAP_ENRICH_WORKERS", "abc")  # garbage falls back
+    assert _enrich_workers() == 12

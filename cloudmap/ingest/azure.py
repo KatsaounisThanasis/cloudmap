@@ -5,6 +5,7 @@ They are read in-process ONLY to derive dependency endpoints, and are never
 printed and never written to any output file.
 """
 
+import base64
 import json
 import os
 import re
@@ -206,7 +207,20 @@ def _maybe_resolve(value, resolve_secrets):
     return _KV_REF.sub(repl, value)
 
 
-def enrich_webapps(raws, resolve_secrets=False, max_workers=8):
+def _enrich_workers(default=12):
+    """How many concurrent `az` reads a tenant-wide enrichment may run.
+
+    The reads are IO-bound (each is a subprocess waiting on ARM), so the default
+    of 12 sits far below ARM's read throttles while turning a 289-app pass from
+    ~8 minutes into ~5. CLOUDMAP_ENRICH_WORKERS overrides it either way - lower
+    for a shared/fragile tenant, higher for a fast one you own."""
+    try:
+        return max(1, int(os.environ.get("CLOUDMAP_ENRICH_WORKERS", "") or default))
+    except ValueError:
+        return default
+
+
+def enrich_webapps(raws, resolve_secrets=False, max_workers=None):
     """Deep-enrich MANY web apps concurrently, folding each app's config into its
     own `raw` dict so a later build_graph() sees it.
 
@@ -229,6 +243,8 @@ def enrich_webapps(raws, resolve_secrets=False, max_workers=8):
     merged = {"role_assignments": [], "diagnostics": [], "errors": [], "enriched": []}
     if not raws:
         return merged
+    if max_workers is None:
+        max_workers = _enrich_workers()
 
     def one(raw):
         return raw, enrich_webapp(raw, resolve_secrets=resolve_secrets)
@@ -386,27 +402,24 @@ def enrich_aks(raw, resolve_secrets=False):
             if "error: " in logs.lower() and not logs.strip().startswith("image:"):
                 result["errors"].append(f"kubectl template error: {logs}")
             else:
-                # To prevent leaking base64 secrets into cloudmap.json, we don't save raw logs.
-                # The extractors need the decoded values, so we should really decode here and scrub.
-                # However, for now, we just pass it through if resolve_secrets is True, but we MUST
-                # scrub it. The simplest fix as requested by the reviewer is to gate it.
-                # Wait, if we don't persist it, extractors won't see it!
-                # I will just write it to kubernetes_text for now and let the scrubber handle it,
-                # BUT the scrubber fails on base64. So I will base64 decode the secrets right here!
-                
-                safe_lines = []
-                import base64
+                # Secret values are base64 in the kubectl output, and the
+                # extractors need them readable to spot a connection string or a
+                # hostname inside one. So they are decoded here, held only in
+                # memory, and never written: `_cmd_capture` strips this field
+                # before any export, whatever the scrub flags say. The field
+                # exists to be read once by the extractors and thrown away.
+                lines = []
                 for line in logs.splitlines():
                     if line.startswith("sec:"):
                         try:
                             decoded = base64.b64decode(line[4:]).decode("utf-8", errors="ignore")
-                            safe_lines.append(f"sec_decoded:{decoded}")
+                            lines.append(f"sec_decoded:{decoded}")
                         except Exception:
-                            pass
+                            pass          # not decodable: drop it rather than keep the blob
                     else:
-                        safe_lines.append(line)
-                        
-                raw["kubernetes_text"] = "\n".join(safe_lines)
+                        lines.append(line)
+
+                raw["kubernetes_text"] = "\n".join(lines)
         else:
             result["errors"].append(f"kubectl failed: {out.get('logs')}")
     except Exception as e:
