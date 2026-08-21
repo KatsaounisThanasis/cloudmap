@@ -148,6 +148,63 @@ def _host_of(url_or_host):
     return s.split("/")[0].split(":")[0]
 
 
+# Property names under which a resource states its OWN address. Read nothing
+# else: a host sitting under some other key is usually one this resource
+# REFERENCES, and indexing that would let it claim another resource's identity.
+_SELF_HOST_KEYS = re.compile(
+    r"(endpoint|endpoints|fqdn|fqdns|hostname|hostnames|host|uri|url|"
+    r"loginserver|dnsname|vaulturi|serviceurl)$", re.I)
+
+# ...except the ones that name SHARED platform infrastructure rather than the
+# resource. Two web apps on the same App Service scale unit report the same
+# `ftpsHostName` (waws-prod-am2-735...), and reading that as identity invented a
+# dependency between two applications that have nothing to do with each other.
+# Found on live data; no synthetic fixture would have produced it.
+_SHARED_PLATFORM_KEYS = re.compile(
+    r"^(ftpshostname|ftphostname|repositorysitename|"
+    r"possibleoutboundipaddresses|outboundipaddresses|inboundipaddress)$", re.I)
+
+
+def _squash(text):
+    """Lowercase alphanumerics only, so `kv-app` and `kvapp` compare equal."""
+    return re.sub(r"[^a-z0-9]", "", (text or "").lower())
+
+
+def _plausible_host(h):
+    """A DNS name, not an ARM id, a path, a port or a bare IP."""
+    if not h or len(h) > 253 or any(c in h for c in " /\\?#@"):
+        return False
+    if re.fullmatch(r"[\d.]+", h):        # bare IP: too ambiguous to own a name
+        return False
+    return bool(re.fullmatch(r"[a-z0-9][a-z0-9.\-]*\.[a-z]{2,}", h))
+
+
+def _self_hosts(node, depth=0, key_hint=""):
+    """Every host name a resource advertises about itself, at any nesting depth.
+
+    This is what makes hostname resolution work for a type nobody wrote a rule
+    for: `properties.endpoint`, `properties.hostNames[]`, `properties.x.fqdn`
+    all get indexed the same way, so a connection string naming that host
+    resolves to the real resource instead of becoming an unverified external.
+    """
+    out = set()
+    if depth > 6:
+        return out
+    if isinstance(node, dict):
+        for k, v in node.items():
+            out |= _self_hosts(v, depth + 1, k if isinstance(k, str) else key_hint)
+    elif isinstance(node, list):
+        for v in node:
+            out |= _self_hosts(v, depth + 1, key_hint)
+    elif isinstance(node, str) and _SELF_HOST_KEYS.search(key_hint or ""):
+        if _SHARED_PLATFORM_KEYS.match(key_hint or ""):
+            return out
+        h = _host_of(node)
+        if _plausible_host(h):
+            out.add(h)
+    return out
+
+
 _IDENT = set("abcdefghijklmnopqrstuvwxyz0123456789-.")
 
 
@@ -184,11 +241,19 @@ class Resolver:
         self.law_by_customer_id = {}   # Log Analytics workspace GUID -> node_id
         self.by_name = {}          # resource name -> node_id (for verifying LLM proposals)
         self.sqldb_by_name = {}    # db name -> [(parent server id lower, db node_id)]
+        self._generic_claims = {}   # host -> {node ids that advertise it}
         for n in nodes.values():
             self.by_id[n.id.lower()] = n.id
             if n.name:
                 self.by_name.setdefault(n.name.lower(), n.id)
             self._index(n)
+        # A host that two resources both advertise is not an identity, it is
+        # shared platform infrastructure, and resolving it would fabricate a
+        # dependency between unrelated resources. Typed branches (which read a
+        # specific documented property) keep priority and are never overridden.
+        for host, owners in self._generic_claims.items():
+            if len(owners) == 1 and host not in self.by_host:
+                self.by_host[host] = next(iter(owners))
 
     def _add_host(self, host, node_id):
         if host:
@@ -199,9 +264,18 @@ class Resolver:
         t = n.type
         name = n.name.lower()
 
-        pid = (n.raw.get("identity") or {}).get("principalId")
+        ident = n.raw.get("identity") or {}
+        pid = ident.get("principalId")
         if pid:
             self.by_principal[pid.lower()] = n.id
+        # A user-assigned identity holds its OWN principal id, and the resource
+        # that attaches it acts under that principal. Without this, every RBAC
+        # edge of every resource using a user-assigned identity is lost - a very
+        # common enterprise pattern, and the reverse view depends on it.
+        for uai in (ident.get("userAssignedIdentities") or {}).values():
+            upid = (uai or {}).get("principalId") if isinstance(uai, dict) else None
+            if upid:
+                self.by_principal.setdefault(upid.lower(), n.id)
         # AKS pulls images with a SEPARATE kubelet identity; map it to the cluster
         # so its role assignments (e.g. AcrPull on an ACR) attribute to the cluster.
         kubelet = ((p.get("identityProfile") or {}).get("kubeletidentity") or {})
@@ -259,12 +333,41 @@ class Resolver:
             ik = p.get("InstrumentationKey")
             if ik:
                 self.by_ik[ik.lower()] = n.id
+        elif t == "microsoft.network/publicipaddresses":
+            # 54 of these in a real estate. Its FQDN is how other configs name it.
+            self._add_host(_lower((p.get("dnsSettings") or {}).get("fqdn")), n.id)
         elif t == "microsoft.operationalinsights/workspaces":
             # A Container Apps environment names its workspace by customerId, not
             # by resource id - index it so that reference can still be resolved.
             cid = _lower(p.get("customerId"))
             if cid:
                 self.law_by_customer_id[cid] = n.id
+
+        # Generic sweep, AFTER the typed branches so they keep priority: index
+        # every host-looking value this resource advertises about itself. The
+        # branches above cover the services whose endpoint property name we know;
+        # this covers every other type, so a config reference by hostname to any
+        # scanned resource resolves without a per-type rule. Same principle as
+        # the generic ARM-reference pass: a general rule instead of an allowlist.
+        self._index_hosts_generically(n)
+
+    def _index_hosts_generically(self, n):
+        """Claim a host as this resource's identity only when it plausibly IS one.
+
+        The signal is the first DNS label: an Azure endpoint is almost always
+        `<resource name>.<service suffix>` (kv-app.vault.azure.net,
+        mycosmos.documents.azure.com). Requiring that match does two jobs at
+        once - it stops a resource claiming a host it merely POINTS AT under a
+        key like `url`, and it rejects shared platform infrastructure, because
+        `waws-prod-am2-735.ftp.azurewebsites.windows.net` does not carry the
+        name of any app running on that scale unit.
+        """
+        mine = _squash(n.name)
+        if not mine:
+            return
+        for host in _self_hosts(n.raw.get("properties") or {}):
+            if _squash(host.split(".")[0]) == mine:
+                self._generic_claims.setdefault(host, set()).add(n.id)
 
     def by_resource_id(self, idstr):
         if not isinstance(idstr, str):
@@ -285,20 +388,41 @@ class Resolver:
 
 # Types excluded as a SOURCE of generic reference edges. Two rationales, same
 # effect - keep them off the map as edge origins:
-#   - fabric: foundational network resources are depended-UPON, never depending;
-#     emitting edges from them turns a shared VNet into a hub (its subnets list
-#     everything plugged in). Dependents still point AT them (vnet-integration).
-#   - observers: monitoring/alerting/dashboards exist to POINT AT resources and
-#     watch or display them. They are not dependencies - if you change the target
-#     the observer does not break, it just observes - so they are noise on a
-#     blast-radius map (the same reason a read-only RBAC role is not a dependent).
-_GENERIC_SOURCE_SKIP = {
-    # fabric
-    "microsoft.network/virtualnetworks",
-    "microsoft.network/networksecuritygroups",
-    "microsoft.network/routetables",
-    "microsoft.network/privatednszones",
-    # observers
+# Azure's own topology model (Network Watcher) separates CONTAINMENT from
+# ASSOCIATION, and that distinction is exactly what a blast-radius map needs.
+#
+# Containment runs the wrong way for dependency purposes: a VNet's `subnets[]`
+# enumerate what is plugged INTO it, so following those ids turns a shared VNet
+# into a hub that drags in every unrelated app on the subscription. The
+# dependents already point AT the fabric (vnet-integration, in-subnet), which is
+# the correct direction, so the container's own listing adds nothing but noise.
+#
+# Association is a genuine dependency and must NOT be dropped: a VNet really
+# does depend on its DDoS protection plan, an NSG rule really does reference an
+# application security group, a peering really does link two VNets. An earlier
+# version excluded these fabric types wholesale and silently lost all of it.
+# The denylist is therefore on PROPERTY PATHS, not on types.
+_CONTAINMENT_PATHS = (
+    "subnets[].ipconfigurations",          # every NIC / PE plugged into a subnet
+    "subnets[].privateendpoints",
+    "subnets[].serviceassociationlinks",
+    "subnets[].resourcenavigationlinks",
+    "subnets[].applicationgatewayipconfigurations",
+    "privateendpointconnections",          # the storage/vault side listing its PEs
+    "privatelinkserviceconnections",
+    "properties.networkinterfaces",        # an NSG listing the NICs it protects
+    "properties.subnets",                  # an NSG / route table listing its subnets
+    "properties.virtualnetworklinks",      # a private DNS zone listing linked VNets
+    "properties.registrationvirtualnetworklinks",
+    "properties.resolutionvirtualnetworklinks",
+)
+
+# Types that watch or display a resource. They ARE affected when the target goes
+# away, so they belong on the map, but they never cause a failure downstream and
+# they must not be traversed through. They get their own edge kind so a reader
+# can tell "this breaks with me" from "this is what I depend on", and the
+# high-level view collapses them into a single box per type.
+_OBSERVER_TYPES = {
     "microsoft.alertsmanagement/prometheusrulegroups",
     "microsoft.alertsmanagement/smartdetectoralertrules",
     "microsoft.insights/metricalerts",
@@ -306,6 +430,11 @@ _GENERIC_SOURCE_SKIP = {
     "microsoft.insights/activitylogalerts",
     "microsoft.portal/dashboards",
 }
+
+
+def _is_containment(path):
+    low = path.lower()
+    return any(marker in low for marker in _CONTAINMENT_PATHS)
 
 
 def _iter_arm_ids(obj, path):
@@ -324,6 +453,45 @@ def _iter_arm_ids(obj, path):
         low = s.lower()
         if low.startswith("/subscriptions/") and "/providers/" in low:
             yield s, path
+
+
+def _iter_host_mentions(obj, path):
+    """Yield (host, dotted_path) for every host name mentioned anywhere under
+    `obj`, whatever the property is called.
+
+    The counterpart of `_iter_arm_ids`: a dependency is just as often written as
+    an endpoint as it is as an ARM id, and outside the config workloads nothing
+    was reading those. The resolver is the filter here too - a host that names
+    nothing we scanned yields no edge, so this cannot invent a dependency."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield from _iter_host_mentions(v, f"{path}.{k}")
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _iter_host_mentions(v, f"{path}[]")
+    elif isinstance(obj, str) and "." in obj:
+        for token in set(re.findall(r"[A-Za-z0-9][A-Za-z0-9.\-]*\.[A-Za-z]{2,}", obj)):
+            yield token.lower(), path
+
+
+def _iter_row_arm_ids(raw):
+    """Every ARM id a row references, including the ones outside `properties`.
+
+    Two ARM shapes live at the top level and were invisible while only
+    `properties` was walked:
+      * `managedBy` - the resource that owns this one (a disk and its VM).
+      * `identity.userAssignedIdentities` - the identities a resource runs as,
+        held as KEYS of that map rather than as values.
+    """
+    yield from _iter_arm_ids(raw.get("properties") or {}, "properties")
+
+    managed_by = raw.get("managedBy")
+    if isinstance(managed_by, str) and managed_by.lower().startswith("/subscriptions/"):
+        yield managed_by, "managedBy"
+
+    for key in ((raw.get("identity") or {}).get("userAssignedIdentities") or {}):
+        if isinstance(key, str) and key.lower().startswith("/subscriptions/"):
+            yield key, "identity.userAssignedIdentities"
 
 
 def extract_edges(nodes):
@@ -415,6 +583,10 @@ def extract_edges(nodes):
             _managedenv_edges(n, p, r, add)
         elif t == "microsoft.containerservice/managedclusters":
             _aks_config_edges(n, p, r, add)
+        elif t == "microsoft.compute/virtualmachines":
+            _vm_edges(n, p, r, add)
+        elif t == "microsoft.network/networkinterfaces":
+            _nic_edges(n, p, r, add)
 
     # Nested-child pass. An id like .../servers/sqlsrv/databases/orders is a
     # child resource: it cannot exist without its parent, so a scanned parent
@@ -439,15 +611,11 @@ def extract_edges(nodes):
     for n in nodes.values():
         if n.type == "microsoft.authorization/roleassignments":
             continue                      # plumbing we derive edges FROM, not a map node
-        # Fabric (a VNet listing everything plugged in) and observers (a rule
-        # group or dashboard watching a resource) are not dependencies - skip them
-        # as generic-edge sources so they do not clutter or hub the map.
-        if n.type in _GENERIC_SOURCE_SKIP:
-            continue
-        for arm_id, path in _iter_arm_ids(n.raw.get("properties") or {}, "properties"):
+        observes = n.type in _OBSERVER_TYPES
+        for arm_id, path in _iter_row_arm_ids(n.raw):
             tgt = r.by_resource_id(arm_id)
-            if "privateendpointconnections" in path.lower() or "privatelinkserviceconnections" in path.lower():
-                continue
+            if _is_containment(path):
+                continue                  # what is plugged in, not what this needs
             if (not tgt or tgt == n.id or (n.id, tgt) in known or (tgt, n.id) in known
                     or nodes[tgt].type == "microsoft.authorization/roleassignments"):
                 continue
@@ -455,11 +623,88 @@ def extract_edges(nodes):
             # back-and-forth pair; keep the first direction seen, drop the mirror.
             if (tgt, n.id) in generic:
                 continue
-            add(n.id, tgt, "references", path)
+            if observes:
+                kind = "observes"
+            elif path == "managedBy":
+                kind = "managed-by"
+            elif path == "identity.userAssignedIdentities":
+                kind = "runs-as"
+            else:
+                kind = "references"
+            add(n.id, tgt, kind, path)
             known.add((n.id, tgt))
             generic.add((n.id, tgt))
 
+    # Generic host-mention pass. An endpoint written anywhere in a resource's
+    # properties names a real dependency just as an ARM id does. The config
+    # workloads had a rule for this; every other type had none, so a Logic App
+    # or a Data Factory naming a vault or a broker by host produced no edge at
+    # all. Runs for EVERY type, config workloads included: a typed rule already
+    # claimed its (source, target) pairs in `known`, so its specific edge kind
+    # is never shadowed, and any host its shape-specific reader missed is still
+    # picked up. Resolves only against hosts a scanned resource advertises, so
+    # it cannot invent a target.
+    for n in nodes.values():
+        if n.type == "microsoft.authorization/roleassignments":
+            continue
+        for host, path in _iter_host_mentions(n.raw.get("properties") or {}, "properties"):
+            tgt = r.host_lookup(host)
+            if not tgt or tgt == n.id or (n.id, tgt) in known or (tgt, n.id) in known:
+                continue
+            if _is_containment(path):
+                continue
+            kind = "observes" if n.type in _OBSERVER_TYPES else domain_kind(host)[0]
+            add(n.id, tgt, kind, f"references host {host} at {path}")
+            known.add((n.id, tgt))
+
     return _dedupe(edges)
+
+
+def _vm_edges(n, p, r, add):
+    """A virtual machine. Compute plus network is the largest category in a real
+    estate, and every one of these edges used to come out as a bare `references`
+    from the generic pass - technically correct, useless to read. The property
+    names are the ones ARM actually returns."""
+    for nic in (p.get("networkProfile") or {}).get("networkInterfaces") or []:
+        add(n.id, r.by_resource_id((nic or {}).get("id")), "has-nic",
+            "networkProfile.networkInterfaces[].id")
+
+    storage = p.get("storageProfile") or {}
+    os_disk = ((storage.get("osDisk") or {}).get("managedDisk") or {}).get("id")
+    add(n.id, r.by_resource_id(os_disk), "uses-disk", "storageProfile.osDisk.managedDisk.id")
+    for data_disk in storage.get("dataDisks") or []:
+        did = ((data_disk or {}).get("managedDisk") or {}).get("id")
+        add(n.id, r.by_resource_id(did), "uses-disk", "storageProfile.dataDisks[].managedDisk.id")
+
+    # A gallery image version is the third most common type in a real estate, and
+    # "which image is this VM built from" is a question people ask during patching.
+    image = (storage.get("imageReference") or {}).get("id")
+    add(n.id, r.by_resource_id(image), "built-from-image", "storageProfile.imageReference.id")
+
+    # An availability set or scale set is to a VM what a plan is to a web app.
+    for key in ("availabilitySet", "virtualMachineScaleSet", "host", "hostGroup"):
+        add(n.id, r.by_resource_id((p.get(key) or {}).get("id")), "hosted-on", f"{key}.id")
+
+    boot = ((p.get("diagnosticsProfile") or {}).get("bootDiagnostics") or {}).get("storageUri")
+    if boot:
+        host = _host_of(boot)
+        add(n.id, r.host_lookup(host), "sends-diagnostics",
+            f"diagnosticsProfile.bootDiagnostics.storageUri ({host})")
+
+
+def _nic_edges(n, p, r, add):
+    """A network interface: the hop between a VM and the network. Its own
+    `virtualMachine.id` is deliberately not followed - that is the mirror of the
+    VM's `has-nic` edge, and following it would state the dependency backwards."""
+    for cfg in p.get("ipConfigurations") or []:
+        cp = (cfg or {}).get("properties") or {}
+        add(n.id, r.by_resource_id((cp.get("subnet") or {}).get("id")), "in-subnet",
+            "ipConfigurations[].properties.subnet.id")
+        add(n.id, r.by_resource_id((cp.get("publicIPAddress") or {}).get("id")),
+            "has-public-ip", "ipConfigurations[].properties.publicIPAddress.id")
+
+    add(n.id, r.by_resource_id((p.get("networkSecurityGroup") or {}).get("id")),
+        "protected-by", "networkSecurityGroup.id")
 
 
 def _config_values(p):

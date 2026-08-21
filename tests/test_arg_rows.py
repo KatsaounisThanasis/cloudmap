@@ -185,3 +185,81 @@ def test_a_sql_database_seed_reaches_its_server_and_its_consumer():
 
     assert "sqlsrv" in reached          # the database lives on that server
     assert "web" in reached             # and this is the app that would break
+
+
+def test_a_type_with_no_rule_is_resolved_by_the_host_it_advertises():
+    # A provider nobody wrote a rule for, which states its own endpoint. The app
+    # names that host in a setting. Before generic host indexing the Resolver
+    # only indexed hosts for ~16 known types, so this edge did not exist and the
+    # target surfaced as an unverified external instead of the real resource.
+    graph = build_graph([
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
+         "properties": {"siteConfig": {"appSettings": [
+             {"name": "FEED_URL", "value": "https://analytics.contoso-feeds.io/v1/push"}]}}},
+        {"id": f"{S}/microsoft.madeup/feeds/analytics", "name": "analytics",
+         "type": "microsoft.madeup/feeds",
+         "properties": {"endpoint": "https://analytics.contoso-feeds.io"}},
+    ])
+    pairs = {(g.nodes[e.source].name, g.nodes[e.target].name)
+             for g in [graph] for e in graph.edges}
+
+    assert ("web", "analytics") in pairs
+    assert all(not n.external for n in graph.nodes.values())   # verified, not a guess
+
+
+def test_a_nested_fqdn_is_indexed_too():
+    graph = build_graph([
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
+         "properties": {"siteConfig": {"appSettings": [
+             {"name": "BROKER", "value": "amqps://broker.example-bus.net:5671"}]}}},
+        {"id": f"{S}/microsoft.madeup/brokers/broker", "name": "broker",
+         "type": "microsoft.madeup/brokers",
+         "properties": {"networking": {"public": {"fqdn": "broker.example-bus.net"}}}},
+    ])
+    pairs = {(graph.nodes[e.source].name, graph.nodes[e.target].name) for e in graph.edges}
+
+    assert ("web", "broker") in pairs
+
+
+def test_a_resource_does_not_claim_a_host_it_merely_references():
+    # kv-real owns the vault host. The made-up resource only POINTS at it, under
+    # a key that is not self-describing, so it must not steal the mapping.
+    graph = build_graph([
+        {"id": f"{S}/microsoft.keyvault/vaults/kv-real", "name": "kv-real",
+         "type": "microsoft.keyvault/vaults",
+         "properties": {"vaultUri": "https://kv-real.vault.azure.net/"}},
+        {"id": f"{S}/microsoft.madeup/things/thing", "name": "thing",
+         "type": "microsoft.madeup/things",
+         "properties": {"secretStore": "https://kv-real.vault.azure.net/"}},
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
+         "properties": {"siteConfig": {"appSettings": [
+             {"name": "KV", "value": "https://kv-real.vault.azure.net/secrets/x"}]}}},
+    ])
+    targets = {graph.nodes[e.target].name for e in graph.edges
+               if graph.nodes[e.source].name == "web"}
+
+    assert "kv-real" in targets
+    assert "thing" not in targets
+
+
+def test_generic_host_indexing_requires_the_host_to_carry_the_resource_name():
+    """A deliberate limit, chosen after a live trace produced a false edge.
+
+    The generic fallback claims a host only when its first DNS label is the
+    resource's own name, which is how Azure endpoints are almost always shaped.
+    The alternative - trusting any host under a key called `url` or `endpoint` -
+    let one resource claim an address it merely POINTED AT, and let two web apps
+    on the same App Service scale unit look like dependencies of each other.
+    Types whose endpoint does not carry their name get a typed branch instead
+    (public IP FQDNs, for example, are indexed that way).
+    """
+    graph = build_graph([
+        {"id": f"{S}/microsoft.madeup/things/thing", "name": "thing",
+         "type": "microsoft.madeup/things",
+         "properties": {"endpoint": "https://something-else.example.net"}},
+        {"id": f"{S}/microsoft.web/sites/web", "name": "web", "type": "microsoft.web/sites",
+         "properties": {"siteConfig": {"appSettings": [
+             {"name": "URL", "value": "https://something-else.example.net"}]}}},
+    ])
+
+    assert graph.edges == []          # a miss, not an invented dependency
